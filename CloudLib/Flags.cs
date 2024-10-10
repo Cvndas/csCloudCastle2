@@ -54,6 +54,7 @@ public enum ServerFlags : byte
 
     // ---- Assignment Notifications ---- //
     AUTHENTICATOR_HELPER_ASSIGNED,
+    QUEUE_POSITION,
 
 
     // ---- Registration ---- // 

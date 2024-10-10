@@ -1,6 +1,7 @@
 #define STATE_PRINTING
 
 using CloudLib;
+using System.Timers;
 using static CloudLib.SenderReceiver;
 
 namespace Client.src;
@@ -95,13 +96,22 @@ class ClientInstance
         _serverData.Stream = _serverData.TcpClient.GetStream();
         _clientState = ClientStates.CONNECTED;
     }
-    
-    private void WaitForAuthenticationHelper(){
-        // Self explanatory. Wait for server to send AUTHENTICATOR_HELPER_ASSIGNED
-        (ServerFlags serverFlag, byte[] payload) = ClientReceiveMessage(_serverData.Stream!);
-        if (serverFlag == ServerFlags.OK){
 
+    private void WaitForAuthenticationHelper()
+    {
+        // TODO Before Dashboard: Use asynchronous receive, pass in cancellation token, invoke the cancellation
+        // when System.Timers.Timer() is done. For this, implemen timeout for 5 seconds, then call Cleanup-like 
+        // function to exit etc.  etc. 
+        while (true) {
+            (ServerFlags serverFlag, byte[] payload) = ClientReceiveMessage(_serverData.Stream!);
+            if (serverFlag == ServerFlags.AUTHENTICATOR_HELPER_ASSIGNED) {
+                Console.WriteLine("You are connected to the server!");
+                return;
+            }
+            else if (serverFlag == ServerFlags.QUEUE_POSITION) {
+                string currentPosition = Encoding.UTF8.GetString(payload);
+                Console.WriteLine("Position in queue: " + currentPosition);
+            }
         }
-        // TODO Next Session
     }
 }
