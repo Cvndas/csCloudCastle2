@@ -3,7 +3,7 @@ using CloudLib;
 
 namespace CloudLib;
 
-public static class SenRec
+public static class SenderReceiver
 {
     public static void ClientSendMessage(NetworkStream stream, ClientFlags flag, byte[] payload)
     {

@@ -1,3 +1,4 @@
+namespace CloudLib;
 public enum ClientFlags : byte
 {
     INVALID_FLAG, // 0, never use.
