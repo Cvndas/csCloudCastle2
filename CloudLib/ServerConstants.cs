@@ -1,7 +1,12 @@
+using System.Net;
 using CloudLib;
 
 public static class ServerConstants
 {
+    public static readonly IPAddress SERVER_IP = IPAddress.Loopback;    
+    public static readonly int SERVER_PORT = 56789;
+
+
     public const int LOGIN_ATTEMPTS = 3;
     public const int REGISTRATION_ATTEMPTS = 3;
 

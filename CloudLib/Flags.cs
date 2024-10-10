@@ -1,7 +1,7 @@
 namespace CloudLib;
 public enum ClientFlags : byte
 {
-    INVALID_FLAG, // 0, never use.
+    INVALID_FLAG, // 0, to mark illegal messages received.
 
     // ---- General ---- //
     OK, // Generic approval, prefer to avoid.
@@ -45,12 +45,16 @@ public enum ClientFlags : byte
 
 public enum ServerFlags : byte
 {
-    INVALID_FLAG, // 0, never use.
+    INVALID_FLAG, // 0, to mark illegal messages.
 
     // ---- General ---- //
     OK, // Generic approval, prefer to avoid.
     TIMEOUT,
     // ----------------- //
+
+    // ---- Assignment Notifications ---- //
+    AUTHENTICATOR_HELPER_ASSIGNED,
+
 
     // ---- Registration ---- // 
     REGISTRATION_INIT_ACCEPTED,
