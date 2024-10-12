@@ -7,10 +7,24 @@ namespace CloudLib;
 public static class SenderReceiver
 {
     // --- PUBLIC --- 
+
     // -------------------- CLIENT ---------------------------- //
+    public static (ServerFlags serverFlag, byte[] payload) ClientReceiveMessage(NetworkStream stream)
+    {
+        (byte flag, byte[] payload) = ReceiveMessage(stream);
+        return ((ServerFlags)flag, payload);
+    }
+
+    public static async Task<(ServerFlags serverFlag, byte[] payload)> ClientReceiveMessageCancellable(NetworkStream stream, CancellationToken token)
+    {
+        var receivedData = await ReceiveMessageCancellable(stream, token);
+        var rawData = receivedData;
+        return ((ServerFlags)rawData.flag, rawData.payload);
+    }
+
     public static void ClientSendFlag(NetworkStream stream, ClientFlags flag)
     {
-        SendMessage(stream, (byte) flag, Array.Empty<byte>());
+        SendMessage(stream, (byte)flag, Array.Empty<byte>());
     }
 
     public static void ClientSendChatMessage(NetworkStream stream, string username, string body)
@@ -19,23 +33,17 @@ public static class SenderReceiver
 
     public static ServerFlags ClientReceiveFlag(NetworkStream stream)
     {
-        List<(byte flag, byte[] payload)> receivedMessages = ReceiveMessages(stream, 1);
-        Debug.Assert(receivedMessages.Count == 1);
-        Debug.Assert(receivedMessages[0].payload.Length == 0);
-        return (ServerFlags)receivedMessages[0].flag;
+        (byte flag, byte[] payload) receivedMessages = ReceiveMessage(stream);
+        Debug.Assert(receivedMessages.payload.Length == 0);
+        return (ServerFlags)receivedMessages.flag;
     }
 
-    public static (ServerFlags serverFlag, byte[] payload) ClientReceiveMessage(NetworkStream stream)
-    {
-        (byte flag, byte[] payload) = ReceiveMessages(stream, 1)[0];
-        return ((ServerFlags) flag, payload);
-    }
 
     // -------------------- SERVER ---------------------------- //
 
     public static void ServerSendFlag(NetworkStream stream, ServerFlags flag)
     {
-        SendMessage(stream, (byte) flag, Array.Empty<byte>());
+        SendMessage(stream, (byte)flag, Array.Empty<byte>());
     }
 
     public static void ServerSendChatMessage(NetworkStream stream, string body)
@@ -67,33 +75,71 @@ public static class SenderReceiver
         stream.Write(sendBuffer);
     }
 
-    private static List<(byte flag, byte[] payload)> ReceiveMessages(NetworkStream stream, int messageCount)
+    private static (byte flag, byte[] payload) ReceiveMessage(NetworkStream stream)
     {
-        var ret = new List<(byte, byte[])>();
-        for (int i = 0; i < messageCount; i++) {
+        byte[] headerBuffer = new byte[ProtocolConstants.HEADER_LEN];
+        int headerBytesRead = 0;
+
+        do {
+            headerBytesRead += stream.Read(headerBuffer, 0, ProtocolConstants.HEADER_LEN);
+        } while (headerBytesRead < ProtocolConstants.HEADER_LEN);
+
+        byte flag = ProtocolHeader.GetGenericFlag(headerBuffer);
+        int payloadLen = ProtocolHeader.GetPayloadLen(headerBuffer);
+        if (payloadLen < 0) {
+            return ((byte)ServerFlags.INVALID_FLAG, Array.Empty<byte>());
+        }
+
+        byte[] payloadBuffer = new byte[payloadLen];
+        int payloadBytesRead = 0;
+        do {
+            payloadBytesRead += stream.Read(payloadBuffer, 0, payloadLen);
+        } while (payloadBytesRead < payloadLen);
+
+        return (flag, payloadBuffer);
+    }
+
+    /// <summary>
+    /// Blocking read function that can be cancelled.
+    /// </summary>
+    /// <param name="stream"></param>
+    /// <param name="messageCount"></param>
+    /// <param name="token"></param>
+    /// <returns></returns>
+    private static async Task<(byte flag, byte[] payload)> ReceiveMessageCancellable(NetworkStream stream, CancellationToken token)
+    {
+        try {
             byte[] headerBuffer = new byte[ProtocolConstants.HEADER_LEN];
-            stream.Read(headerBuffer, 0, ProtocolConstants.HEADER_LEN);
+            int headerBytesRead = 0;
+            Task<int> headerBytesReadTask;
+
+            do {
+                headerBytesReadTask = stream.ReadAsync(headerBuffer, 0, ProtocolConstants.HEADER_LEN, token);
+                headerBytesRead += await (headerBytesReadTask);
+            } while (headerBytesRead < ProtocolConstants.HEADER_LEN && stream.DataAvailable);
+
             byte flag = ProtocolHeader.GetGenericFlag(headerBuffer);
             int payloadLen = ProtocolHeader.GetPayloadLen(headerBuffer);
             if (payloadLen < 0) {
-                return new List<(byte, byte[])>() { ((byte)ServerFlags.INVALID_FLAG, Array.Empty<byte>() ) };
+                return ((byte)ServerFlags.INVALID_FLAG, Array.Empty<byte>());
             }
 
             byte[] payloadBuffer = new byte[payloadLen];
-            int bytesRead = 0;
+            int payloadBytesRead = 0;
             do {
-                bytesRead += stream.Read(payloadBuffer, 0, payloadLen);
-            } while (bytesRead < payloadLen);
+                payloadBytesRead += await stream.ReadAsync(payloadBuffer, 0, payloadLen, token);
+            } while (payloadBytesRead < payloadLen);
 
-            ret.Add((flag, payloadBuffer));
+            return (flag, payloadBuffer);
         }
-        return ret;
-    }
-
-    private static async Task<List<(byte flag, byte[] payload)>> CancellableReceiveMessages(NetworkStream stream, int messageCount)
-    {
-        // TODO Before dashboard
-        return await Task.FromResult(new List<(byte flag, byte[] payload)>());
+        catch (OperationCanceledException) {
+            // Still consume all remaining data in the stream.
+            Console.WriteLine("ReceiveMessagesCancellable canceled. Consuming remaining messages.");
+            while (stream.DataAvailable) {
+                ReceiveMessage(stream);
+            }
+            return ((byte)ServerFlags.INVALID_FLAG, Array.Empty<byte>());
+        }
     }
 
     private static (ServerFlags flag, byte[] payload) ParseServerMessage(byte[] message)

@@ -24,7 +24,7 @@ class ClientInstance
 
 
     private static ClientInstance? _instance;
-    private UserData _clientData;
+    private UserData _userData;
     private ServerData _serverData;
     private ClientStates _clientState;
 
@@ -40,12 +40,12 @@ class ClientInstance
         if (newUsername == "") {
             throw new WrongUsernameException("Username was \"\"");
         }
-        _clientData.Username = newUsername;
+        _userData.Username = newUsername;
     }
 
     private ClientInstance()
     {
-        _clientData = new UserData {
+        _userData = new UserData {
             Username = "",
             LoginAttempts = 0,
             RegistrationAttempst = 0
@@ -74,6 +74,13 @@ class ClientInstance
                     case ClientStates.CONNECTED:
                         WaitForAuthenticationHelper();
                         break;
+                    case ClientStates.ASSIGNED:
+                        ReceiveAuthChoice();
+                        break;
+
+                    case ClientStates.EXITING_PROGRAM:
+                        CleanupConnectionResources();
+                        return;
                     default:
                         throw new InvalidStateTransitionException($"Invalid state in RunAuthenticatorStateMachine: {_clientState}");
                 }
@@ -97,21 +104,74 @@ class ClientInstance
         _clientState = ClientStates.CONNECTED;
     }
 
-    private void WaitForAuthenticationHelper()
+    private async void WaitForAuthenticationHelper()
     {
         // TODO Before Dashboard: Use asynchronous receive, pass in cancellation token, invoke the cancellation
         // when System.Timers.Timer() is done. For this, implemen timeout for 5 seconds, then call Cleanup-like 
         // function to exit etc.  etc. 
+        CancellationTokenSource source = new(5000);
+        CancellationToken token = source.Token;
+        try {
+
+            while (true) {
+                (ServerFlags serverFlag, byte[] payload) = await ClientReceiveMessageCancellable(_serverData.Stream!, token);
+                if (serverFlag == ServerFlags.AUTHENTICATOR_HELPER_ASSIGNED) {
+                    Debug.Assert(payload.Count() == 0);
+                    Console.WriteLine("You are connected to the server!");
+                    _clientState = ClientStates.CONNECTED;
+                    return;
+                }
+                else if (serverFlag == ServerFlags.QUEUE_POSITION) {
+                    Debug.Assert(payload.Count() > 0);
+                    string currentPosition = Encoding.UTF8.GetString(payload);
+                    Console.WriteLine("Position in queue: " + currentPosition);
+                }
+            }
+        }
+        catch (OperationCanceledException) {
+            Console.WriteLine("Server timeout - Try again at a later time.");
+            _clientState = ClientStates.EXITING_PROGRAM;
+            return;
+        }
+    }
+    private void ReceiveAuthChoice()
+    {
         while (true) {
-            (ServerFlags serverFlag, byte[] payload) = ClientReceiveMessage(_serverData.Stream!);
-            if (serverFlag == ServerFlags.AUTHENTICATOR_HELPER_ASSIGNED) {
-                Console.WriteLine("You are connected to the server!");
+            Console.WriteLine("login: l ||| register: r");
+            string? userResponse = Console.ReadLine();
+            if (userResponse == null) {
+                Console.WriteLine("Failed to receive input. Try again.");
+                _clientState = ClientStates.EXITING_PROGRAM;
                 return;
             }
-            else if (serverFlag == ServerFlags.QUEUE_POSITION) {
-                string currentPosition = Encoding.UTF8.GetString(payload);
-                Console.WriteLine("Position in queue: " + currentPosition);
+
+            if (userResponse == "l") {
+                ProcessLogin();
+                return;
+            }
+            else if (userResponse == "r") {
+                ProcessRegistration();
+                return;
+            }
+            else {
+                Console.WriteLine("Invalid choice.");
             }
         }
     }
+
+    private void ProcessLogin()
+    {
+        // Check for timeout message from server
+        // Check for login attempts on client side
+        // Make sure the server also checks for login attempts, and closes the connection if too many. Doesn't need to send flag. Let hacked clients break. 
+        _userData.LoginAttempts += 1;
+        _clientState = ClientStates.ASSIGNED; // if something went wrong.
+    }
+
+    private void ProcessRegistration()
+    {
+        // Check for timeout message from server
+        _clientState = ClientStates.ASSIGNED; // if success or if failure.
+    }
 }
+
