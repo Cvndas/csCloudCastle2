@@ -1,6 +1,10 @@
 ﻿namespace CloudLib;
 
-public class ProtocolConstants
+/// <summary>
+/// Constants related to the transfer of data between the client and server. <br/>
+/// All code using the Cloud Protocol must adhere to these constants.
+/// </summary>
+public class CloudProtocol
 {
     public const int MEGABYTE_LEN = 1_048_576;
     public const int BYTE_LEN = 1;

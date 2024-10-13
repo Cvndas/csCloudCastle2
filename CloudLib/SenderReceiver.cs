@@ -2,6 +2,8 @@ using System.Net.Sockets;
 using System.Diagnostics;
 using CloudLib;
 
+using static System.Diagnostics.Debug;
+
 namespace CloudLib;
 
 public static class SenderReceiver
@@ -18,8 +20,7 @@ public static class SenderReceiver
     public static async Task<(ServerFlags serverFlag, byte[] payload)> ClientReceiveMessageCancellable(NetworkStream stream, CancellationToken token)
     {
         var receivedData = await ReceiveMessageCancellable(stream, token);
-        var rawData = receivedData;
-        return ((ServerFlags)rawData.flag, rawData.payload);
+        return ((ServerFlags)receivedData.flag, receivedData.payload);
     }
 
     public static void ClientSendFlag(NetworkStream stream, ClientFlags flag)
@@ -29,12 +30,13 @@ public static class SenderReceiver
 
     public static void ClientSendChatMessage(NetworkStream stream, string username, string body)
     {
+        Assert(false);
     }
 
     public static ServerFlags ClientReceiveFlag(NetworkStream stream)
     {
         (byte flag, byte[] payload) receivedMessages = ReceiveMessage(stream);
-        Debug.Assert(receivedMessages.payload.Length == 0);
+        Assert(receivedMessages.payload.Length == 0);
         return (ServerFlags)receivedMessages.flag;
     }
 
@@ -46,9 +48,14 @@ public static class SenderReceiver
         SendMessage(stream, (byte)flag, Array.Empty<byte>());
     }
 
+    public static void ServerSendString(NetworkStream stream, ServerFlags flag, string payloadString)
+    {
+        Assert(false);
+    }
+
     public static void ServerSendChatMessage(NetworkStream stream, string body)
     {
-
+        Assert(false);
     }
 
     // TODO : Add more abstractions as required. There should be no mention of byte[] or headers outside of this file. 
@@ -67,22 +74,22 @@ public static class SenderReceiver
     private static void SendMessage(NetworkStream stream, byte flag, byte[] payload)
     {
         int payloadLen = payload.Length;
-        byte[] sendBuffer = new byte[ProtocolConstants.HEADER_LEN + payloadLen];
+        byte[] sendBuffer = new byte[CloudProtocol.HEADER_LEN + payloadLen];
         byte[] payloadLengthBytes = BitConverter.GetBytes(payloadLen);
         sendBuffer[0] = flag;
-        Array.Copy(payloadLengthBytes, 0, sendBuffer, ProtocolConstants.FLAG_LEN, payloadLengthBytes.Count());
-        Array.Copy(payload, 0, sendBuffer, ProtocolConstants.HEADER_LEN, payloadLen);
+        Array.Copy(payloadLengthBytes, 0, sendBuffer, CloudProtocol.FLAG_LEN, payloadLengthBytes.Count());
+        Array.Copy(payload, 0, sendBuffer, CloudProtocol.HEADER_LEN, payloadLen);
         stream.Write(sendBuffer);
     }
 
     private static (byte flag, byte[] payload) ReceiveMessage(NetworkStream stream)
     {
-        byte[] headerBuffer = new byte[ProtocolConstants.HEADER_LEN];
+        byte[] headerBuffer = new byte[CloudProtocol.HEADER_LEN];
         int headerBytesRead = 0;
 
         do {
-            headerBytesRead += stream.Read(headerBuffer, 0, ProtocolConstants.HEADER_LEN);
-        } while (headerBytesRead < ProtocolConstants.HEADER_LEN);
+            headerBytesRead += stream.Read(headerBuffer, 0, CloudProtocol.HEADER_LEN);
+        } while (headerBytesRead < CloudProtocol.HEADER_LEN);
 
         byte flag = ProtocolHeader.GetGenericFlag(headerBuffer);
         int payloadLen = ProtocolHeader.GetPayloadLen(headerBuffer);
@@ -109,14 +116,14 @@ public static class SenderReceiver
     private static async Task<(byte flag, byte[] payload)> ReceiveMessageCancellable(NetworkStream stream, CancellationToken token)
     {
         try {
-            byte[] headerBuffer = new byte[ProtocolConstants.HEADER_LEN];
+            byte[] headerBuffer = new byte[CloudProtocol.HEADER_LEN];
             int headerBytesRead = 0;
             Task<int> headerBytesReadTask;
 
             do {
-                headerBytesReadTask = stream.ReadAsync(headerBuffer, 0, ProtocolConstants.HEADER_LEN, token);
+                headerBytesReadTask = stream.ReadAsync(headerBuffer, 0, CloudProtocol.HEADER_LEN, token);
                 headerBytesRead += await (headerBytesReadTask);
-            } while (headerBytesRead < ProtocolConstants.HEADER_LEN && stream.DataAvailable);
+            } while (headerBytesRead < CloudProtocol.HEADER_LEN && stream.DataAvailable);
 
             byte flag = ProtocolHeader.GetGenericFlag(headerBuffer);
             int payloadLen = ProtocolHeader.GetPayloadLen(headerBuffer);

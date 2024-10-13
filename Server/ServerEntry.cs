@@ -4,6 +4,6 @@ global using System.Net;
 global using System.Diagnostics;
 
 global using static System.Console;
-global using static CloudLib.ProtocolConstants;
+global using static CloudLib.CloudProtocol;
 
 namespace Server;

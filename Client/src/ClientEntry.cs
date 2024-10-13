@@ -3,7 +3,7 @@ global using System.Net.Sockets;
 global using System.Net;
 global using System.Diagnostics;
 
-global using static CloudLib.ProtocolConstants;
+global using static CloudLib.CloudProtocol;
 
 
 namespace Client.src;
