@@ -1,6 +1,10 @@
 using System.Net;
 using CloudLib;
 
+/// <summary>
+/// Constants for how the Server and Client interact, on top of the protocol
+/// defined in ProtocolHeader and ProtocolConstants.
+/// </summary>
 public static class ServerConstants
 {
     public static readonly IPAddress SERVER_IP = IPAddress.Loopback;
@@ -24,6 +28,10 @@ public static class ServerConstants
     public const int TOKEN_REFILL_MINUTES = 3;
 
     public const int MAX_FILENAME_LEN = sizeof(char) * 15;
+
+
+    public const int HELPERS_PER_AUTHENTICATION_MANAGER = 2;
+    public const int MAX_AUTHENTICATION_MANAGERS = 2;
 
 
 

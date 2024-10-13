@@ -6,6 +6,7 @@ public enum ClientFlags : byte
     // ---- General ---- //
     OK, // Generic approval, prefer to avoid.
     QUITTING, // Whenever you want to tell the server explicitly to close the connection.
+    READ_CANCELED,
     // ----------------- //
 
     // ---- Registration ---- // 
@@ -43,6 +44,8 @@ public enum ClientFlags : byte
     // -------------- // 
 }
 
+// --------------------------------------------------- // 
+
 public enum ServerFlags : byte
 {
     INVALID_FLAG, // 0, to mark illegal messages.
@@ -50,6 +53,7 @@ public enum ServerFlags : byte
     // ---- General ---- //
     OK, // Generic approval, prefer to avoid.
     TIMEOUT,
+    READ_CANCELED,
     // ----------------- //
 
     // ---- Assignment Notifications ---- //

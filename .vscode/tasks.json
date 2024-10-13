@@ -1,0 +1,35 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Debug Build Server",
+			"type": "process",
+			"group": "build",
+			"problemMatcher": "$msCompile",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"${workspaceFolder}/Server"
+			],
+		},
+		{
+			"label": "Debug Build Client",
+			"type": "process",
+			"group": "build",
+			"command": "dotnet",
+			"problemMatcher": "$msCompile",
+			"args": [
+				"build",
+				"${workspaceFolder}/Client"
+			]
+		},
+		{
+			"label": "Debug Build Server and Client",
+			"dependsOn": [
+				"Debug Build Client",
+				"Debug Build Server"
+			],
+			"problemMatcher": []
+		}
+	]
+}

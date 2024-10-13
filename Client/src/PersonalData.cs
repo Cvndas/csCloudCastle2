@@ -1,5 +1,5 @@
 namespace Client.src;
-public struct UserData
+public struct PersonalData
 {
     public string Username;
     public int LoginAttempts;

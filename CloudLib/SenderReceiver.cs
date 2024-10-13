@@ -36,9 +36,15 @@ public static class SenderReceiver
     public static ServerFlags ClientReceiveFlag(NetworkStream stream)
     {
         (byte flag, byte[] payload) receivedMessages = ReceiveMessage(stream);
+        // The asserts are fine for the client, but the server should handle this by kicking the client.
         Assert(receivedMessages.payload.Length == 0);
         return (ServerFlags)receivedMessages.flag;
     }
+    // -------------------------------------------------------- // 
+
+
+
+
 
 
     // -------------------- SERVER ---------------------------- //
@@ -58,7 +64,11 @@ public static class SenderReceiver
         Assert(false);
     }
 
-    // TODO : Add more abstractions as required. There should be no mention of byte[] or headers outside of this file. 
+    public static void ServerReceiveFlag(NetworkStream stream)
+    {
+        // DON'T FORGET
+        // "if payload > 0 " -> break connection to the client.
+    }
 
 
 
@@ -106,6 +116,7 @@ public static class SenderReceiver
         return (flag, payloadBuffer);
     }
 
+
     /// <summary>
     /// Blocking read function that can be cancelled.
     /// </summary>
@@ -145,7 +156,7 @@ public static class SenderReceiver
             while (stream.DataAvailable) {
                 ReceiveMessage(stream);
             }
-            return ((byte)ServerFlags.INVALID_FLAG, Array.Empty<byte>());
+            return ((byte)ServerFlags.READ_CANCELED, Array.Empty<byte>());
         }
     }
 

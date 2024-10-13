@@ -1,12 +1,13 @@
 #define STATE_PRINTING
 
 using CloudLib;
-using System.Timers;
 using static CloudLib.SenderReceiver;
 
 namespace Client.src;
 
-
+/// <summary>
+/// The class which manages the User's experience. 
+/// </summary>
 class ClientInstance
 {
     public static ClientInstance Instance()
@@ -17,50 +18,53 @@ class ClientInstance
         return _instance!;
     }
 
-    public void Start()
-    {
-        RunAuthenticatorStateMachine();
-    }
-
-
-    private static ClientInstance? _instance;
-    private UserData _userData;
-    private ServerData _serverData;
-    private ClientStates _clientState;
-
-#if STATE_PRINTING
-    private void DPrintState()
-    {
-        Console.WriteLine(_clientState);
-    }
-#endif
-
-    private void SetUsername(string newUsername)
-    {
-        if (newUsername == "") {
-            throw new WrongUsernameException("Username was \"\"");
-        }
-        _userData.Username = newUsername;
-    }
-
     private ClientInstance()
     {
-        _userData = new UserData {
+        _personalData = new PersonalData {
             Username = "",
             LoginAttempts = 0,
             RegistrationAttempst = 0
         };
-        _serverData = new ServerData {
-            TcpClient = null,
-            Stream = null
-        };
     }
 
-    private void CleanupConnectionResources()
+    public void Start()
     {
-        _serverData.TcpClient?.Dispose();
-        _serverData.Stream?.Dispose();
+        try {
+
+            RunAuthenticatorStateMachine();
+        }
+        catch (ExitingProgramException) {
+            Console.WriteLine("Exiting program.");
+            _connectionResources?.Cleanup();
+        }
+        return;
     }
+
+    // ------------------- VARIABLES -------------------------- // 
+
+    private static ClientInstance? _instance;
+    private PersonalData _personalData;
+    private ConnectionResources? _connectionResources;
+    private ClientStates _clientState;
+
+    // -------------------------------------------------------- // 
+
+    private void DPrintState()
+    {
+#if STATE_PRINTING
+        Console.WriteLine(_clientState);
+#endif
+    }
+
+    private void
+    SetUsername(string newUsername)
+    {
+        if (newUsername == "") {
+            throw new WrongUsernameException("Username was \"\"");
+        }
+        _personalData.Username = newUsername;
+    }
+
 
     private void RunAuthenticatorStateMachine()
     {
@@ -78,43 +82,43 @@ class ClientInstance
                         ReceiveAuthChoice();
                         break;
 
-                    case ClientStates.EXITING_PROGRAM:
-                        CleanupConnectionResources();
-                        return;
                     default:
-                        throw new InvalidStateTransitionException($"Invalid state in RunAuthenticatorStateMachine: {_clientState}");
+                        throw new InvalidStateTransitionException
+                                  ($"Invalid state in RunAuthenticatorStateMachine: {_clientState}");
                 }
             }
         }
         catch (IOException e) {
             Console.WriteLine("IO Exception caught in RunAuthenticatorStateMachine: " + e.Message);
-            _clientState = ClientStates.EXITING_PROGRAM;
-            CleanupConnectionResources();
-            throw new ExitProgram("IO Exception.");
+            throw new ExitingProgramException("Caught IO Exception in RunAuthenticatorStateMachine");
         }
     }
 
-    private void ConnectToServer()
+    private void
+    ConnectToServer()
     {
         Console.WriteLine("Connecting to the server...");
         IPEndPoint ipEndPoint = new(ServerConstants.SERVER_IP, ServerConstants.SERVER_PORT);
-        _serverData.TcpClient = new TcpClient();
-        _serverData.TcpClient.Connect(ipEndPoint);
-        _serverData.Stream = _serverData.TcpClient.GetStream();
+        TcpClient tcpClient = new TcpClient();
+        tcpClient.Connect(ipEndPoint);
+        NetworkStream stream = tcpClient.GetStream();
+        _connectionResources = new ConnectionResources() { TcpClient = tcpClient, Stream = stream };
+
         _clientState = ClientStates.CONNECTED;
     }
 
-    private async void WaitForAuthenticationHelper()
+    private async void
+    WaitForAuthenticationHelper()
     {
-        // TODO Before Dashboard: Use asynchronous receive, pass in cancellation token, invoke the cancellation
-        // when System.Timers.Timer() is done. For this, implemen timeout for 5 seconds, then call Cleanup-like 
-        // function to exit etc.  etc. 
+        // TODO - Test, before marking the authentication as complete.
         CancellationTokenSource source = new(5000);
         CancellationToken token = source.Token;
         try {
 
             while (true) {
-                (ServerFlags serverFlag, byte[] payload) = await ClientReceiveMessageCancellable(_serverData.Stream!, token);
+                (ServerFlags serverFlag, byte[] payload) =
+                    await ClientReceiveMessageCancellable(_connectionResources!.Stream!, token);
+
                 if (serverFlag == ServerFlags.AUTHENTICATOR_HELPER_ASSIGNED) {
                     Debug.Assert(payload.Count() == 0);
                     Console.WriteLine("You are connected to the server!");
@@ -138,13 +142,13 @@ class ClientInstance
     {
         while (true) {
             Console.WriteLine("login: l ||| register: r");
-            string? userResponse = Console.ReadLine();
-            if (userResponse == null) {
-                Console.WriteLine("Failed to receive input. Try again.");
-                _clientState = ClientStates.EXITING_PROGRAM;
-                return;
-            }
 
+            string? userResponse = Console.ReadLine();
+
+            if (userResponse == null) {
+                Console.WriteLine("Failed to receive input");
+                throw new ExitingProgramException("Failed to receive input in ReceiveAuthChoice");
+            }
             if (userResponse == "l") {
                 ProcessLogin();
                 return;
@@ -163,8 +167,9 @@ class ClientInstance
     {
         // Check for timeout message from server
         // Check for login attempts on client side
-        // Make sure the server also checks for login attempts, and closes the connection if too many. Doesn't need to send flag. Let hacked clients break. 
-        _userData.LoginAttempts += 1;
+        // Make sure the server also checks for login attempts, and closes the connection if too many. Doesn't need 
+        // to send flag. Let hacked clients break. 
+        _personalData.LoginAttempts += 1;
         _clientState = ClientStates.ASSIGNED; // if something went wrong.
     }
 

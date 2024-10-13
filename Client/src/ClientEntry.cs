@@ -4,6 +4,7 @@ global using System.Net;
 global using System.Diagnostics;
 
 global using static CloudLib.CloudProtocol;
+global using static System.Console;
 
 
 namespace Client.src;
@@ -12,13 +13,24 @@ class Program
 {
     public static void Main()
     {
+#if DEBUG
+        WriteLine("Client - Debug");
+#else
+        WriteLine("Client- Release");
+#endif
+
         try {
-            Console.WriteLine("Welcome (client).");
+            WriteLine("Welcome (client).");
             ClientInstance instance = ClientInstance.Instance();
             instance.Start();
         }
-        catch (ExitProgram) {
-            Console.WriteLine("Exiting the program.");
+        catch (Exception e){
+            WriteLine("Unhandled exception caught in ClientEntry:");
+            WriteLine("Exception Type: " + e.GetType());
+            WriteLine("Message: " + e.Message);
+        }
+        finally {
+            WriteLine("Exiting the program.");
         }
     }
 }

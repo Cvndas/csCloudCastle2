@@ -1,2 +1,4 @@
 Server/bin
 Client/binCloudLib/bin
+Server/obj
+Client/obj
