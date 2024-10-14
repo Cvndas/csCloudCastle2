@@ -32,12 +32,12 @@ internal class ListenerInstance
     public void Start()
     {
         Stopwatch stopwatch = new Stopwatch();
-        TimeSpan AuthManagerCleanupTime = TimeSpan.FromSeconds(20);
+        // TODO Before registration : Increase the time to a reasonable level later.
+        TimeSpan AuthManagerCleanupTime = TimeSpan.FromSeconds(1);
         _tcpListener.Start();
         while (true) {
             TcpClient newTcpClient = _tcpListener.AcceptTcpClient();
-            Console.WriteLine("Sleeping right after accepting connection.");
-            Thread.Sleep(30000);
+            Thread.Sleep(100000);
             NetworkStream newClientStream = newTcpClient.GetStream();
             ConnectionResources newClientResources = new ConnectionResources {
                 TcpClient = newTcpClient,
@@ -101,7 +101,7 @@ internal class ListenerInstance
                 return;
             }
             else {
-                ServerSendFlag(resources!.Stream!, ServerFlags.OVERLOADED);
+                SSendRecv.SendFlag(resources!.Stream!, ServerFlags.OVERLOADED);
             }
         }
     }

@@ -2,11 +2,13 @@ namespace CloudLib;
 public enum ClientFlags : byte
 {
     INVALID_FLAG, // 0, to mark illegal messages received.
+    DO_NOT_USE_READ_CANCELED, // 1, do not move
+    DO_NOT_USE_TIMEOUT, // 2, do not move
 
     // ---- General ---- //
     OK, // Generic approval, prefer to avoid.
     QUITTING, // Whenever you want to tell the server explicitly to close the connection.
-    READ_CANCELED,
+    CLIENT_DISCONNECTED,
     // ----------------- //
 
     // ---- Registration ---- // 
@@ -30,14 +32,14 @@ public enum ClientFlags : byte
 
     // ---- Download ---- // 
     DOWNLOAD_REQUEST,
-    DOWNLOAD_RECEIVED, 
+    DOWNLOAD_RECEIVED,
     // ------------------ // 
 
 
     // ---- Upload ---- // 
     UPLOAD_REQUEST,
     // ---------------- // 
-     
+
     // ---- Chat ---- //
     CHAT_MESSAGE,
     EXIT_CHAT,
@@ -49,11 +51,12 @@ public enum ClientFlags : byte
 public enum ServerFlags : byte
 {
     INVALID_FLAG, // 0, to mark illegal messages.
+    READ_CANCELED, // 1, do not move
+    SERVER_TIMEOUT, // 2, do not move
 
     // ---- General ---- //
     OK, // Generic approval, prefer to avoid.
-    TIMEOUT,
-    READ_CANCELED,
+    DISCONNECTION,
     // ----------------- //
 
     // ---- Assignment Notifications ---- //
@@ -107,9 +110,10 @@ public enum ServerFlags : byte
     UPLOAD_REJECTED_TOKENS_DEPLETED,
     UPLOAD_REJECTED_MAX_FILE_COUNT_REACHED,
     // ---------------- // 
-     
+
     // ---- Chat ---- //
     CHAT_MESSAGE,
     CHAT_EXITED,
     // -------------- // 
 }
+

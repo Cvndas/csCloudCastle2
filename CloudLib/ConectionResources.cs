@@ -10,6 +10,7 @@ public record ConnectionResources
 
     public void Cleanup()
     {
+        Console.WriteLine("-------- PERFORMING CLEANUP OF RESOURCES ----------");
         TcpClient?.Dispose();
         Stream?.Dispose();
     }

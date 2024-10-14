@@ -27,3 +27,10 @@ class ExitingProgramException : Exception
 
     }
 }
+
+class ServerDisconnected : Exception
+{
+    public ServerDisconnected(string message) : base(message){
+
+    }
+}

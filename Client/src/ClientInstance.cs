@@ -113,86 +113,25 @@ class ClientInstance
     }
 
 
-    // Made this function a bit more complicated to avoid having to mark this, and its callers, as async.
     private void WaitForAuthenticationHelper()
     {
-        // 10 second timer before being kicked out. Timer is tested to work.
-        CancellationTokenSource source = new(10000);
+        CancellationTokenSource source = new(2000);
         CancellationToken token = source.Token;
 
         while (true) {
-
-            ServerFlags? serverFlag = null;
-            byte[]? payload = null;
-            object resultIsReadyLock = new object();
-            bool resultIsReady = false;
-
-            object errorEvalLock = new object();
-            string errorEval = "incomplete";
-
-            // ----------------------------- Reading data from the server ------------------------------------ //
-            Task.Run(async () => {
-                try {
-                    (serverFlag, payload) = await ClientReceiveMessageCancellable(_connectionResources!.Stream!, token);
-
-                    if (serverFlag == ServerFlags.READ_CANCELED) {
-                        lock (errorEvalLock) {
-                            errorEval = "OPCANCEL";
-                            Monitor.Pulse(errorEvalLock);
-                        }
-                    }
-                    else {
-                        lock (errorEvalLock) {
-                            errorEval = "FINE";
-                            Monitor.Pulse(errorEvalLock);
-                        }
-                        lock (resultIsReadyLock) {
-                            resultIsReady = true;
-                            Monitor.Pulse(resultIsReadyLock);
-                        }
-                    }
-                }
-
-                catch (IOException) {
-                    lock (errorEvalLock) {
-                        errorEval = "IOCRASH";
-                        Monitor.Pulse(errorEvalLock);
-                    }
-                }
-            });
-
-            // ----------------------------------------------------------------------------------------------- //
-
-
-            // ------------------------- SYNCHRONIZATION ------------------------------- //
-            lock (errorEvalLock) {
-                if (errorEval == "incomplete") {
-                    Monitor.Wait(errorEvalLock);
-                }
-
-                if (errorEval == "IOCRASH") {
-                    throw new IOException("Disconnection in WaitForAuthenticationHelper");
-                }
-                else if (errorEval == "OPCANCEL") {
-                    Console.WriteLine("Server timeout - Try again at a later time.");
-                    throw new ExitingProgramException("Server timeout.");
-                }
-                else if (errorEval != "FINE"){
-                    throw new ExitingProgramException("Programmer error: Wrong errorEval set in WaitForAuthenticationHelper");
-                }
+            (ServerFlags? serverFlag, byte[] payload) = CSendRecv.ReceiveMessageCancellable(_connectionResources!.Stream!, token);
+            
+            // Error checking
+            if (serverFlag == ServerFlags.DISCONNECTION){
+                throw new IOException("Disconnected from server in WaitForAuthenticationHelper().");
             }
-
-            lock (resultIsReadyLock) {
-                if (!resultIsReady) {
-                    Monitor.Wait(resultIsReadyLock);
-                }
+            else if (serverFlag == ServerFlags.READ_CANCELED)
+            {
+                Console.WriteLine("Server timeout - Try again later.");
+                throw new ExitingProgramException("Server timeout in WaitForAuthenticationHelper()");
             }
-
-            Debug.Assert(serverFlag != null);
-            Debug.Assert(payload != null);
-            // ------------------------------------------------------------------------- //
-
-
+        
+            // Handling non-error flags
             if (serverFlag == ServerFlags.AUTHENTICATOR_HELPER_ASSIGNED) {
                 Debug.Assert(payload.Count() == 0);
                 Console.WriteLine("You are connected to the server!");
@@ -209,8 +148,7 @@ class ClientInstance
                 throw new ExitingProgramException("The server was overloaded.");
             }
             else {
-                Console.WriteLine("This is triggered at least.");
-                throw new ExitingProgramException("Received invalid flag from Server: " + serverFlag);
+                throw new ExitingProgramException("Received " + serverFlag + " from the server");
             }
         }
     }

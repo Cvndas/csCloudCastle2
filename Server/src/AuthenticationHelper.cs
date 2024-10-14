@@ -105,7 +105,7 @@ internal class AuthenticationHelper
                     break;
                 }
 
-                // TODO next: Try to get this line to execute.
+                // TODO next 2: Try to get this line to execute.
                 _authHelperState = ServerStates.ASSIGNED_TO_CLIENT;
 
                 RunAuthenticatorHelperStateMachine();

@@ -13,9 +13,10 @@ internal class AuthenticationManager
         _clientQueueLock = new object();
 
         _tokenSource = new CancellationTokenSource();
+        _token = _tokenSource.Token;
 
         for (int i = 0; i < ServerConstants.HELPERS_PER_AUTHENTICATION_MANAGER; i++) {
-            CR_freeAuthHelpers.Enqueue(new AuthenticationHelper(id + i, _tokenSource.Token));
+            CR_freeAuthHelpers.Enqueue(new AuthenticationHelper(id + i, _token));
         }
 
         _authenticationManagerThread = new Thread(() => AuthenticationManagerJob());
@@ -81,7 +82,7 @@ internal class AuthenticationManager
 
     // ----------- Private data ------------- // 
     private CancellationTokenSource _tokenSource;
-    private CancellationToken _token;
+    private readonly CancellationToken _token;
     private Thread _authenticationManagerThread;
     private int _id;
     // -------------------------------------- //
