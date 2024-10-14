@@ -17,6 +17,9 @@ public static class SenderReceiver
         return ((ServerFlags)flag, payload);
     }
 
+    /// <summary>
+    /// Upon cancellation via CancellationToken, serverFlag is set to READ_CANCELED.
+    /// </summary>
     public static async Task<(ServerFlags serverFlag, byte[] payload)> ClientReceiveMessageCancellable(NetworkStream stream, CancellationToken token)
     {
         var receivedData = await ReceiveMessageCancellable(stream, token);

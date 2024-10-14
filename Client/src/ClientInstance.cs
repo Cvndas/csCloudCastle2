@@ -31,15 +31,14 @@ class ClientInstance
     public void Start()
     {
         try {
-
             RunAuthenticatorStateMachine();
         }
         catch (ExitingProgramException e) {
-            #if DEBUG
-            WriteLine("Exiting program message: " + e.Message);
-            #endif
-            WriteLine("Exiting program.");
+            Console.WriteLine("Exiting program message: " + e.Message);
             _connectionResources?.Cleanup();
+        }
+        catch (Exception) {
+            throw;
         }
         return;
     }
@@ -56,7 +55,7 @@ class ClientInstance
     private void DPrintState()
     {
 #if STATE_PRINTING
-        WriteLine(_clientState);
+        Console.WriteLine("STATE: " + _clientState);
 #endif
     }
 
@@ -81,6 +80,7 @@ class ClientInstance
                         break;
                     case ClientStates.CONNECTED:
                         WaitForAuthenticationHelper();
+                        Console.WriteLine("Success? what the fuck is happening?");
                         break;
                     case ClientStates.ASSIGNED:
                         ReceiveAuthChoice();
@@ -93,15 +93,16 @@ class ClientInstance
             }
         }
         catch (IOException e) {
-            WriteLine("IO Exception caught in RunAuthenticatorStateMachine: " + e.Message);
-            throw new ExitingProgramException("Caught IO Exception in RunAuthenticatorStateMachine");
+            throw new ExitingProgramException("Caught IO Exception in RunAuthenticatorStateMachine: " + e.Message);
+        }
+        catch (InvalidStateTransitionException) {
+            throw;
         }
     }
 
-    private void
-    ConnectToServer()
+    private void ConnectToServer()
     {
-        WriteLine("Connecting to the server...");
+        Console.WriteLine("Connecting to the server...");
         IPEndPoint ipEndPoint = new(ServerConstants.SERVER_IP, ServerConstants.SERVER_PORT);
         TcpClient tcpClient = new TcpClient();
         tcpClient.Connect(ipEndPoint);
@@ -111,50 +112,119 @@ class ClientInstance
         _clientState = ClientStates.CONNECTED;
     }
 
-    private async void
-    WaitForAuthenticationHelper()
+
+    // Made this function a bit more complicated to avoid having to mark this, and its callers, as async.
+    private void WaitForAuthenticationHelper()
     {
-        // TODO - Test timer, before marking the authentication as complete.
-        CancellationTokenSource source = new(5000);
+        // 10 second timer before being kicked out. Timer is tested to work.
+        CancellationTokenSource source = new(10000);
         CancellationToken token = source.Token;
-        try {
 
-            while (true) {
-                (ServerFlags serverFlag, byte[] payload) =
-                    await ClientReceiveMessageCancellable(_connectionResources!.Stream!, token);
+        while (true) {
 
-                if (serverFlag == ServerFlags.AUTHENTICATOR_HELPER_ASSIGNED) {
-                    Debug.Assert(payload.Count() == 0);
-                    WriteLine("You are connected to the server!");
-                    _clientState = ClientStates.CONNECTED;
-                    return;
+            ServerFlags? serverFlag = null;
+            byte[]? payload = null;
+            object resultIsReadyLock = new object();
+            bool resultIsReady = false;
+
+            object errorEvalLock = new object();
+            string errorEval = "incomplete";
+
+            // ----------------------------- Reading data from the server ------------------------------------ //
+            Task.Run(async () => {
+                try {
+                    (serverFlag, payload) = await ClientReceiveMessageCancellable(_connectionResources!.Stream!, token);
+
+                    if (serverFlag == ServerFlags.READ_CANCELED) {
+                        lock (errorEvalLock) {
+                            errorEval = "OPCANCEL";
+                            Monitor.Pulse(errorEvalLock);
+                        }
+                    }
+                    else {
+                        lock (errorEvalLock) {
+                            errorEval = "FINE";
+                            Monitor.Pulse(errorEvalLock);
+                        }
+                        lock (resultIsReadyLock) {
+                            resultIsReady = true;
+                            Monitor.Pulse(resultIsReadyLock);
+                        }
+                    }
                 }
-                else if (serverFlag == ServerFlags.QUEUE_POSITION) {
-                    Debug.Assert(payload.Count() > 0);
-                    string currentPosition = Encoding.UTF8.GetString(payload);
-                    WriteLine("Position in queue: " + currentPosition);
+
+                catch (IOException) {
+                    lock (errorEvalLock) {
+                        errorEval = "IOCRASH";
+                        Monitor.Pulse(errorEvalLock);
+                    }
                 }
-                else if (serverFlag == ServerFlags.OVERLOADED){
-                    WriteLine("The server is overloaded. Try again later.");
-                    throw new ExitingProgramException("The server was overloaded.");
+            });
+
+            // ----------------------------------------------------------------------------------------------- //
+
+
+            // ------------------------- SYNCHRONIZATION ------------------------------- //
+            lock (errorEvalLock) {
+                if (errorEval == "incomplete") {
+                    Monitor.Wait(errorEvalLock);
+                }
+
+                if (errorEval == "IOCRASH") {
+                    throw new IOException("Disconnection in WaitForAuthenticationHelper");
+                }
+                else if (errorEval == "OPCANCEL") {
+                    Console.WriteLine("Server timeout - Try again at a later time.");
+                    throw new ExitingProgramException("Server timeout.");
+                }
+                else if (errorEval != "FINE"){
+                    throw new ExitingProgramException("Programmer error: Wrong errorEval set in WaitForAuthenticationHelper");
                 }
             }
-        }
-        catch (OperationCanceledException) {
-            WriteLine("Server timeout - Try again at a later time.");
-            _clientState = ClientStates.EXITING_PROGRAM;
-            return;
+
+            lock (resultIsReadyLock) {
+                if (!resultIsReady) {
+                    Monitor.Wait(resultIsReadyLock);
+                }
+            }
+
+            Debug.Assert(serverFlag != null);
+            Debug.Assert(payload != null);
+            // ------------------------------------------------------------------------- //
+
+
+            if (serverFlag == ServerFlags.AUTHENTICATOR_HELPER_ASSIGNED) {
+                Debug.Assert(payload.Count() == 0);
+                Console.WriteLine("You are connected to the server!");
+                _clientState = ClientStates.CONNECTED;
+                return;
+            }
+            else if (serverFlag == ServerFlags.QUEUE_POSITION) {
+                Debug.Assert(payload.Count() > 0);
+                string currentPosition = Encoding.UTF8.GetString(payload);
+                Console.WriteLine("Position in queue: " + currentPosition);
+            }
+            else if (serverFlag == ServerFlags.OVERLOADED) {
+                Console.WriteLine("The server is overloaded. Try again later.");
+                throw new ExitingProgramException("The server was overloaded.");
+            }
+            else {
+                Console.WriteLine("This is triggered at least.");
+                throw new ExitingProgramException("Received invalid flag from Server: " + serverFlag);
+            }
         }
     }
+
+
     private void ReceiveAuthChoice()
     {
         while (true) {
-            WriteLine("login: l ||| register: r");
+            Console.WriteLine("login: l ||| register: r");
 
-            string? userResponse = ReadLine();
+            string? userResponse = Console.ReadLine();
 
             if (userResponse == null) {
-                WriteLine("Failed to receive input");
+                Console.WriteLine("Failed to receive input");
                 throw new ExitingProgramException("Failed to receive input in ReceiveAuthChoice");
             }
             if (userResponse == "l") {
@@ -166,12 +236,11 @@ class ClientInstance
                 return;
             }
             else {
-                WriteLine("Invalid choice.");
+                Console.WriteLine("Invalid choice.");
                 _personalData.AuthChoiceAttempts += 1;
                 // TODO : Do this server side
-                if (_personalData.AuthChoiceAttempts > ServerConstants.MAX_AUTH_CHOICE_ATTEMTPS)
-                {
-                    WriteLine("Too many attempts were made. Learn to read.");
+                if (_personalData.AuthChoiceAttempts > ServerConstants.MAX_AUTH_CHOICE_ATTEMTPS) {
+                    Console.WriteLine("Too many attempts were made. Learn to read.");
                     throw new ExitingProgramException("Too many Auth Choice attempts.");
                 }
             }

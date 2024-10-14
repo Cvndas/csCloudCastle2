@@ -33,8 +33,11 @@ internal class ListenerInstance
     {
         Stopwatch stopwatch = new Stopwatch();
         TimeSpan AuthManagerCleanupTime = TimeSpan.FromSeconds(20);
+        _tcpListener.Start();
         while (true) {
             TcpClient newTcpClient = _tcpListener.AcceptTcpClient();
+            Console.WriteLine("Sleeping right after accepting connection.");
+            Thread.Sleep(30000);
             NetworkStream newClientStream = newTcpClient.GetStream();
             ConnectionResources newClientResources = new ConnectionResources {
                 TcpClient = newTcpClient,
@@ -46,15 +49,15 @@ internal class ListenerInstance
 
                 if (stopwatch.Elapsed.TotalSeconds > AuthManagerCleanupTime.TotalSeconds) {
                     // TODO Future: make this run asynchronously, and protect the managers via a lock.
-                    WriteLine("Listener thread is going to cleanup the AuthenticationManagerStack.");
+                    Console.WriteLine("Listener thread is going to cleanup the AuthenticationManagerStack.");
                     CleanupAuthenticationManagerStack();
-                    WriteLine("Listener thread has SUCCESSFULLY cleaned the AuthenticationManagerStack.");
+                    Console.WriteLine("Listener thread has SUCCESSFULLY cleaned the AuthenticationManagerStack.");
                     stopwatch.Restart();
                 }
 
             }
             catch (IOException) {
-                WriteLine("Main thread: User disconnected while being placed in an AuthenticationQueue");
+                Console.WriteLine("Main thread: User disconnected while being placed in an AuthenticationQueue");
             }
         }
     }

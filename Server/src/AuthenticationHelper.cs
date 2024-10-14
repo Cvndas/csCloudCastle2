@@ -101,46 +101,47 @@ internal class AuthenticationHelper
                     Debug.Assert(CR_hasWork == true);
                 }
                 if (_cancellationToken.IsCancellationRequested) {
-                    WriteLine($"Helper: {_helperData.Id} has had his cancellation token invoked.");
+                    Console.WriteLine($"Helper: {_helperData.Id} has had his cancellation token invoked.");
                     break;
                 }
 
+                // TODO next: Try to get this line to execute.
                 _authHelperState = ServerStates.ASSIGNED_TO_CLIENT;
 
                 RunAuthenticatorHelperStateMachine();
 
             }
             catch (IOException) {
-                WriteLine($"Client of {_helperData.Id} disconnected.");
+                Console.WriteLine($"Client of {_helperData.Id} disconnected.");
                 _helperData?.Resources?.Cleanup();
             }
             catch (ClientTimeoutException) {
-                WriteLine($"Client of {_helperData.Id} timed out. Terminating the connection.");
+                Console.WriteLine($"Client of {_helperData.Id} timed out. Terminating the connection.");
                 _helperData?.Resources?.Cleanup();
             }
             catch (Exception e) {
-                WriteLine($"Unexpected exception in AuthenticatorHelperJob of {_helperData.Id}.");
-                WriteLine("Exception Type: " + e.GetType());
-                WriteLine("Message: " + e.Message);
-                WriteLine("Terminating the connection nonetheless.");
+                Console.WriteLine($"Unexpected exception in AuthenticatorHelperJob of {_helperData.Id}.");
+                Console.WriteLine("Exception Type: " + e.GetType());
+                Console.WriteLine("Message: " + e.Message);
+                Console.WriteLine("Terminating the connection nonetheless.");
                 _helperData?.Resources?.Cleanup();
             }
             finally {
                 // Note: this code block will probably be reached while the client's resources are valid, and
                 // passed into another part of the system.
-                WriteLine("Unimplemented the \"finally\" part of AuthenticatorHelperJob");
+                Console.WriteLine("Unimplemented the \"finally\" part of AuthenticatorHelperJob");
                 Debug.Assert(false);
             }
         }
 
-        WriteLine($"Helper: {_helperData.Id} has exited his thread, and it's ready to be joined.");
+        Console.WriteLine($"Helper: {_helperData.Id} has exited his thread, and it's ready to be joined.");
     }
 
     private void JoinAuthHelperThread()
     {
-        WriteLine($"AuthHelper: {_helperData.Id} is trying to join his Job thread..");
+        Console.WriteLine($"AuthHelper: {_helperData.Id} is trying to join his Job thread..");
         _authenticationHelperThread.Join();
-        WriteLine($"AuthHelper: {_helperData.Id} has joined his Job thread.");
+        Console.WriteLine($"AuthHelper: {_helperData.Id} has joined his Job thread.");
     }
 
 
@@ -156,7 +157,7 @@ internal class AuthenticationHelper
                     ProcessAuthenticationChoice();
                     break;
                 default:
-                    WriteLine("Invalid state reached.");
+                    Console.WriteLine("Invalid state reached.");
                     return;
             }
         }
@@ -179,7 +180,7 @@ internal class AuthenticationHelper
     private void DPrintAuthStates()
     {
 #if PRINTING_AUTH_STATES
-        WriteLine(_authHelperState);
+        Console.WriteLine(_authHelperState);
 #endif
     }
 }

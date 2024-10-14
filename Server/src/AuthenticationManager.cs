@@ -71,7 +71,7 @@ internal class AuthenticationManager
                     ret = true;
                 }
                 else {
-                    WriteLine($"AuthenticationManager: {_id} was not free, and has not been destroyed.");
+                    Console.WriteLine($"AuthenticationManager: {_id} was not free, and has not been destroyed.");
                 }
             }
         }
@@ -107,8 +107,6 @@ internal class AuthenticationManager
     {
         // TODO Don't forget to process the token being cancelled.
         while (true) {
-            // Read from the CR_freeAuthHelpers, read from the CR_clientQueue, pass shi around.
-            // TODO next
             AuthenticationHelper? helper;
             lock (_freeAuthHelpersLock) {
                 if (CR_freeAuthHelpers.Count > 0) {
@@ -148,12 +146,12 @@ internal class AuthenticationManager
             helper.AssignClient(clientResources!);
 
         }
-        WriteLine($"AuthenticationManager: {_id} has exited the Job, and is ready to be joined.");
+        Console.WriteLine($"AuthenticationManager: {_id} has exited the Job, and is ready to be joined.");
     }
 
     private void DisposeOfSelf()
     {
-        WriteLine($"AuthenticationManager: {_id} has joined his Job thread.");
+        Console.WriteLine($"AuthenticationManager: {_id} has joined his Job thread.");
         Debug.Assert(_token.IsCancellationRequested);
         lock (_clientQueueLock) {
             Monitor.Pulse(_clientQueueLock);
@@ -162,6 +160,6 @@ internal class AuthenticationManager
             Monitor.Pulse(_clientQueueLock);
         }
         _authenticationManagerThread.Join();
-        WriteLine($"AuthenticationManager: {_id} has joined his Job thread.");
+        Console.WriteLine($"AuthenticationManager: {_id} has joined his Job thread.");
     }
 }

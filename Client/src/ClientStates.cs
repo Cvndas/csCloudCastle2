@@ -1,7 +1,6 @@
 public enum ClientStates
 {
     NOT_CONNECTED,
-    EXITING_PROGRAM,
     CLOSING_CONNECTION,
     CLOSED_CONNECTION,
     CONNECTED,

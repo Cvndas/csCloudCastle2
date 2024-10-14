@@ -5,7 +5,6 @@ global using System.Net.Sockets;
 global using System.Net;
 global using System.Diagnostics;
 
-global using static System.Console;
 global using static CloudLib.CloudProtocol;
 global using static CloudLib.SenderReceiver;
 using System.ComponentModel;
