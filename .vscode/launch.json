@@ -9,22 +9,28 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "Debug Build Server and Client",
-            "program": "${workspaceFolder}/Server/bin/Debug/net7.0/Server",
+            "program": "${workspaceFolder}/Server/bin/Debug/net8.0/Server",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
-            "console": "internalConsole"
+            "console": "internalConsole",
+            "logging": {
+                "moduleLoad": false
+            }
         },
         {
             "name": "Debug Client",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "Debug Build Server and Client",
-            "program": "${workspaceFolder}/Client/bin/Debug/net7.0/Client",
+            "program": "${workspaceFolder}/Client/bin/Debug/net8.0/Client",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
-            "console": "internalConsole"
+            "console": "internalConsole",
+            "logging": {
+                "moduleLoad": false,
+            }
         }
     ]
 }

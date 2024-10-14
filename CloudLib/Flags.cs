@@ -8,7 +8,7 @@ public enum ClientFlags : byte
     // ---- General ---- //
     OK, // Generic approval, prefer to avoid.
     QUITTING, // Whenever you want to tell the server explicitly to close the connection.
-    CLIENT_DISCONNECTED,
+    DISCONNECTED,
     // ----------------- //
 
     // ---- Registration ---- // 
@@ -67,11 +67,12 @@ public enum ServerFlags : byte
 
     // ---- Registration ---- // 
     REGISTRATION_INIT_ACCEPTED,
-    REGISTRATION_SUCCEEDED,
+    REGISTRATION_SUCCESSFUL,
     USERNAME_TAKEN,
     USERNAME_TOO_LONG,
     USERNAME_TOO_SHORT,
     PASSWORD_TOO_LONG,
+    PASSWORD_TOO_SHORT,
     MAX_REGISTRATION_ATTEMPTS_REACHED, // Terminate connection after sending.
     // ---------------------- // 
 

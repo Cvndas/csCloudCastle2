@@ -20,10 +20,15 @@ internal class SSendRecv
         Debug.Assert(false);
     }
 
-    public static void ReceiveFlag(NetworkStream stream)
+    public static ClientFlags ReceiveFlag(NetworkStream stream)
     {
-        Debug.Assert(false);
-        // DON'T FORGET
-        // "if payload > 0 " -> break connection to the client.
+        (byte flag, byte[] payload) receivedMessage = SenderReceiver.ReceiveMessage(stream);
+
+        if (receivedMessage.payload.Length != 0) {
+            Console.WriteLine("ReceiveFlag(): Expected payload length to be 0.");
+            return ClientFlags.DISCONNECTED;
+        }
+
+        return (ClientFlags) receivedMessage.flag;
     }
 }

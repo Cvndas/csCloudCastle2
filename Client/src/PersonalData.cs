@@ -5,4 +5,5 @@ public struct PersonalData
     public int LoginAttempts;
     public int RegistrationAttempst;
     public int AuthChoiceAttempts;
+    public int AccountsCreated;
 }

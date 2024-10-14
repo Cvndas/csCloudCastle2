@@ -21,6 +21,7 @@ internal class ListenerInstance
     {
         _tcpListener = new(ServerConstants.SERVER_IP, ServerConstants.SERVER_PORT);
         _authenticationManagers = new List<AuthenticationManager>();
+        _idToGiveToAuthManager = ServerConstants.AUTH_MANAGER_BASE_ID;
     }
 
     private readonly TcpListener _tcpListener;
@@ -32,13 +33,15 @@ internal class ListenerInstance
     public void Start()
     {
         Stopwatch stopwatch = new Stopwatch();
-        // TODO Before registration : Increase the time to a reasonable level later.
-        TimeSpan AuthManagerCleanupTime = TimeSpan.FromSeconds(1);
+        stopwatch.Start();
+
+        // TODO Before Chat : Increase the time to a reasonable level later.
+        TimeSpan AuthManagerCleanupTime = TimeSpan.FromSeconds(ServerConstants.AUTH_MANAGER_CLEANUP_TIMEFRAME_SECONDS);
         _tcpListener.Start();
         while (true) {
             TcpClient newTcpClient = _tcpListener.AcceptTcpClient();
-            Thread.Sleep(100000);
             NetworkStream newClientStream = newTcpClient.GetStream();
+
             ConnectionResources newClientResources = new ConnectionResources {
                 TcpClient = newTcpClient,
                 Stream = newClientStream
@@ -48,7 +51,8 @@ internal class ListenerInstance
                 AddToAuthenticationQueue(newClientResources);
 
                 if (stopwatch.Elapsed.TotalSeconds > AuthManagerCleanupTime.TotalSeconds) {
-                    // TODO Future: make this run asynchronously, and protect the managers via a lock.
+
+                    // TODO DLC: make this run asynchronously, and protect the managers via a lock.
                     Console.WriteLine("Listener thread is going to cleanup the AuthenticationManagerStack.");
                     CleanupAuthenticationManagerStack();
                     Console.WriteLine("Listener thread has SUCCESSFULLY cleaned the AuthenticationManagerStack.");
@@ -69,6 +73,7 @@ internal class ListenerInstance
     // --- private variables --- //
     // First off, a list of AuthenticationManagers.
     private List<AuthenticationManager> _authenticationManagers;
+    private int _idToGiveToAuthManager;
     // ----------------- // 
 
 
@@ -96,8 +101,9 @@ internal class ListenerInstance
         else {
             int managerCount = _authenticationManagers.Count;
             if (managerCount < ServerConstants.MAX_AUTHENTICATION_MANAGERS) {
-                _authenticationManagers.Add(new AuthenticationManager(i * 1000));
+                _authenticationManagers.Add(new AuthenticationManager(_idToGiveToAuthManager));
                 AddToAuthenticationQueue(resources);
+                _idToGiveToAuthManager += ServerConstants.AUTH_MANAGER_ID_INCREMENT;
                 return;
             }
             else {

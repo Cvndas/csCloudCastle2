@@ -77,11 +77,16 @@ public static class SenderReceiver
             byte[] headerBuffer = new byte[CloudProtocol.HEADER_LEN];
             int headerBytesRead = 0;
             Task<int> headerBytesReadTask;
+            int iterationBytesRead;
 
             do {
                 headerBytesReadTask = stream.ReadAsync(headerBuffer, 0, CloudProtocol.HEADER_LEN, token);
-                headerBytesRead += await (headerBytesReadTask);
-            } while (headerBytesRead < CloudProtocol.HEADER_LEN && stream.DataAvailable);
+                iterationBytesRead = await (headerBytesReadTask);
+                if (iterationBytesRead == 0){
+                    throw new IOException("DISCONNECTION in ReceiveMessageCancellable");
+                }
+                headerBytesRead += iterationBytesRead;
+            } while (headerBytesRead < CloudProtocol.HEADER_LEN);
 
             byte flag = ProtocolHeader.GetGenericFlag(headerBuffer);
             int payloadLen = ProtocolHeader.GetPayloadLen(headerBuffer);

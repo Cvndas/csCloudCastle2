@@ -1,14 +1,13 @@
 #define STATE_PRINTING
 
 using CloudLib;
-using static CloudLib.SenderReceiver;
 
 namespace Client.src;
 
 /// <summary>
-/// The class which manages the User's experience. 
+/// The class which handles the Client's experience.
 /// </summary>
-class ClientInstance
+internal partial class ClientInstance
 {
     public static ClientInstance Instance()
     {
@@ -24,7 +23,8 @@ class ClientInstance
             Username = "",
             LoginAttempts = 0,
             RegistrationAttempst = 0,
-            AuthChoiceAttempts = 0
+            AuthChoiceAttempts = 0,
+            AccountsCreated = 0
         };
     }
 
@@ -42,6 +42,7 @@ class ClientInstance
         }
         return;
     }
+
 
     // ------------------- VARIABLES -------------------------- // 
 
@@ -69,136 +70,5 @@ class ClientInstance
     }
 
 
-    private void RunAuthenticatorStateMachine()
-    {
-        try {
-            while (true) {
-                DPrintState();
-                switch (_clientState) {
-                    case ClientStates.NOT_CONNECTED:
-                        ConnectToServer();
-                        break;
-                    case ClientStates.CONNECTED:
-                        WaitForAuthenticationHelper();
-                        Console.WriteLine("Success? what the fuck is happening?");
-                        break;
-                    case ClientStates.ASSIGNED:
-                        ReceiveAuthChoice();
-                        break;
-
-                    default:
-                        throw new InvalidStateTransitionException
-                                  ($"Invalid state in RunAuthenticatorStateMachine: {_clientState}");
-                }
-            }
-        }
-        catch (IOException e) {
-            throw new ExitingProgramException("Caught IO Exception in RunAuthenticatorStateMachine: " + e.Message);
-        }
-        catch (InvalidStateTransitionException) {
-            throw;
-        }
-    }
-
-    private void ConnectToServer()
-    {
-        Console.WriteLine("Connecting to the server...");
-        IPEndPoint ipEndPoint = new(ServerConstants.SERVER_IP, ServerConstants.SERVER_PORT);
-        TcpClient tcpClient = new TcpClient();
-        tcpClient.Connect(ipEndPoint);
-        NetworkStream stream = tcpClient.GetStream();
-        _connectionResources = new ConnectionResources() { TcpClient = tcpClient, Stream = stream };
-
-        _clientState = ClientStates.CONNECTED;
-    }
-
-
-    private void WaitForAuthenticationHelper()
-    {
-        CancellationTokenSource source = new(2000);
-        CancellationToken token = source.Token;
-
-        while (true) {
-            (ServerFlags? serverFlag, byte[] payload) = CSendRecv.ReceiveMessageCancellable(_connectionResources!.Stream!, token);
-            
-            // Error checking
-            if (serverFlag == ServerFlags.DISCONNECTION){
-                throw new IOException("Disconnected from server in WaitForAuthenticationHelper().");
-            }
-            else if (serverFlag == ServerFlags.READ_CANCELED)
-            {
-                Console.WriteLine("Server timeout - Try again later.");
-                throw new ExitingProgramException("Server timeout in WaitForAuthenticationHelper()");
-            }
-        
-            // Handling non-error flags
-            if (serverFlag == ServerFlags.AUTHENTICATOR_HELPER_ASSIGNED) {
-                Debug.Assert(payload.Count() == 0);
-                Console.WriteLine("You are connected to the server!");
-                _clientState = ClientStates.CONNECTED;
-                return;
-            }
-            else if (serverFlag == ServerFlags.QUEUE_POSITION) {
-                Debug.Assert(payload.Count() > 0);
-                string currentPosition = Encoding.UTF8.GetString(payload);
-                Console.WriteLine("Position in queue: " + currentPosition);
-            }
-            else if (serverFlag == ServerFlags.OVERLOADED) {
-                Console.WriteLine("The server is overloaded. Try again later.");
-                throw new ExitingProgramException("The server was overloaded.");
-            }
-            else {
-                throw new ExitingProgramException("Received " + serverFlag + " from the server");
-            }
-        }
-    }
-
-
-    private void ReceiveAuthChoice()
-    {
-        while (true) {
-            Console.WriteLine("login: l ||| register: r");
-
-            string? userResponse = Console.ReadLine();
-
-            if (userResponse == null) {
-                Console.WriteLine("Failed to receive input");
-                throw new ExitingProgramException("Failed to receive input in ReceiveAuthChoice");
-            }
-            if (userResponse == "l") {
-                ProcessLogin();
-                return;
-            }
-            else if (userResponse == "r") {
-                ProcessRegistration();
-                return;
-            }
-            else {
-                Console.WriteLine("Invalid choice.");
-                _personalData.AuthChoiceAttempts += 1;
-                // TODO : Do this server side
-                if (_personalData.AuthChoiceAttempts > ServerConstants.MAX_AUTH_CHOICE_ATTEMTPS) {
-                    Console.WriteLine("Too many attempts were made. Learn to read.");
-                    throw new ExitingProgramException("Too many Auth Choice attempts.");
-                }
-            }
-        }
-    }
-
-    private void ProcessLogin()
-    {
-        // Check for timeout message from server
-        // Check for login attempts on client side
-        // Make sure the server also checks for login attempts, and closes the connection if too many. Doesn't need 
-        // to send flag. Let hacked clients break. 
-        _personalData.LoginAttempts += 1;
-        _clientState = ClientStates.ASSIGNED; // if something went wrong.
-    }
-
-    private void ProcessRegistration()
-    {
-        // Check for timeout message from server
-        _clientState = ClientStates.ASSIGNED; // if success or if failure.
-    }
 }
 

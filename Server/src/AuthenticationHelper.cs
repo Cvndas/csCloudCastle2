@@ -14,7 +14,10 @@ internal class AuthenticationHelper
     {
         _helperData = new AuthenticationHelperData {
             Id = id,
-            Resources = null
+            ConnectionResources = null,
+            LoginAttempts = 0,
+            RegistrationAttempts = 0,
+            AccountsCreated = 0
         };
 
         CR_hasWork = false;
@@ -23,7 +26,7 @@ internal class AuthenticationHelper
 
         _authHelperState = ServerStates.NOT_CONNECTED;
 
-        _authenticationHelperThread = new(AuthenticatorHelperJob);
+        _authenticationHelperThread = new(AuthenticationHelperJob);
         _authenticationHelperThread.Start();
     }
 
@@ -34,7 +37,7 @@ internal class AuthenticationHelper
         lock (_hasWorkLock) {
             Debug.Assert(CR_hasWork == false);
 
-            _helperData.Resources = resources;
+            _helperData.ConnectionResources = resources;
 
             CR_hasWork = true; // This bool is probably completely unnecessary, except for the assert.
             Monitor.Pulse(_hasWorkLock);
@@ -50,8 +53,8 @@ internal class AuthenticationHelper
         lock (_hasWorkLock) {
             Monitor.Pulse(_hasWorkLock);
         }
-        Debug.Assert(_helperData!.Resources!.Stream == null);
-        Debug.Assert(_helperData!.Resources!.TcpClient == null);
+        Debug.Assert(_helperData!.ConnectionResources!.Stream == null);
+        Debug.Assert(_helperData!.ConnectionResources!.TcpClient == null);
         JoinAuthHelperThread();
     }
 
@@ -60,7 +63,10 @@ internal class AuthenticationHelper
         // Id remains consistent throughout
         // ConnectionResources may be transferred around.
         internal int Id { get; init; }
-        internal ConnectionResources? Resources { get; set; }
+        internal int RegistrationAttempts { get; set; }
+        internal int LoginAttempts { get; set; }
+        internal int AccountsCreated { get; set; }
+        internal ConnectionResources? ConnectionResources { get; set; }
     }
 
     // ---------- Private Variables -------- // 
@@ -89,7 +95,7 @@ internal class AuthenticationHelper
 
 
     // -------------- Private Methods ------- // 
-    private void AuthenticatorHelperJob()
+    private void AuthenticationHelperJob()
     {
         while (true) {
             try {
@@ -105,26 +111,25 @@ internal class AuthenticationHelper
                     break;
                 }
 
-                // TODO next 2: Try to get this line to execute.
                 _authHelperState = ServerStates.ASSIGNED_TO_CLIENT;
 
-                RunAuthenticatorHelperStateMachine();
+                RunAuthenticationHelperStateMachine();
 
             }
             catch (IOException) {
                 Console.WriteLine($"Client of {_helperData.Id} disconnected.");
-                _helperData?.Resources?.Cleanup();
+                _helperData?.ConnectionResources?.Cleanup();
             }
             catch (ClientTimeoutException) {
                 Console.WriteLine($"Client of {_helperData.Id} timed out. Terminating the connection.");
-                _helperData?.Resources?.Cleanup();
+                _helperData?.ConnectionResources?.Cleanup();
             }
             catch (Exception e) {
                 Console.WriteLine($"Unexpected exception in AuthenticatorHelperJob of {_helperData.Id}.");
                 Console.WriteLine("Exception Type: " + e.GetType());
                 Console.WriteLine("Message: " + e.Message);
                 Console.WriteLine("Terminating the connection nonetheless.");
-                _helperData?.Resources?.Cleanup();
+                _helperData?.ConnectionResources?.Cleanup();
             }
             finally {
                 // Note: this code block will probably be reached while the client's resources are valid, and
@@ -137,6 +142,7 @@ internal class AuthenticationHelper
         Console.WriteLine($"Helper: {_helperData.Id} has exited his thread, and it's ready to be joined.");
     }
 
+    // Thread: Listener
     private void JoinAuthHelperThread()
     {
         Console.WriteLine($"AuthHelper: {_helperData.Id} is trying to join his Job thread..");
@@ -146,8 +152,9 @@ internal class AuthenticationHelper
 
 
     // !!! !!! State Machine !!! !!! //
-    private void RunAuthenticatorHelperStateMachine()
+    private void RunAuthenticationHelperStateMachine()
     {
+        // Being assigned takes place in AuthenticationHelperjob
         Debug.Assert(_authHelperState == ServerStates.ASSIGNED_TO_CLIENT);
 
         while (true) {
@@ -155,6 +162,13 @@ internal class AuthenticationHelper
             switch (_authHelperState) {
                 case ServerStates.ASSIGNED_TO_CLIENT:
                     ProcessAuthenticationChoice();
+                    break;
+                case ServerStates.REGISTRATION_REQUEST_RECEIVED:
+                    ProcessRegistrationAttempt();
+                    break;
+                case ServerStates.BREAKING_CONNECTION:
+                    // TODO Before login
+                    Debug.Assert(false);
                     break;
                 default:
                     Console.WriteLine("Invalid state reached.");
@@ -165,15 +179,54 @@ internal class AuthenticationHelper
 
     private void ProcessAuthenticationChoice()
     {
-        // TODO : After implementing the Auth Helper thread pool and Free Auth Helper queue.
-        Debug.Assert(false);
-        return;
+        ClientFlags flag = SSendRecv.ReceiveFlag(_helperData.ConnectionResources!.Stream!);
+
+        if (flag == ClientFlags.DISCONNECTED) {
+            _authHelperState = ServerStates.BREAKING_CONNECTION;
+        }
+        else if (flag == ClientFlags.LOGIN_INIT) {
+            _authHelperState = ServerStates.LOGIN_REQUEST_RECEIVED;
+        }
+        else if (flag == ClientFlags.REGISTRATION_INIT) {
+            _authHelperState = ServerStates.REGISTRATION_REQUEST_RECEIVED;
+        }
+
+        else {
+            Console.WriteLine("Received invalid flag in ProcessAuthenticationChoice: " + flag);
+            _authHelperState = ServerStates.BREAKING_CONNECTION;
+        }
+    }
+
+    private void ProcessRegistrationAttempt()
+    {
+        // TODO Next - Finish, Server Side 
+
+        // The unmodified client will send no Registration requests if it has reached the max.
+        if (_helperData.AccountsCreated > ServerConstants.MAX_ACCOUNTS_PER_SESSION){
+            // therefore, if this code is triggered, the user is hacking
+            _authHelperState = ServerStates.BREAKING_CONNECTION;
+            return;
+        }
+        // Code
+        // Expect to receive ClientFlags.REGISTRATION_USERNAME_PASSWORD followed by "username password"
+        // Check the validity of the input, then check if it's not already taken, then respond with
+        // appropriate flags.
+
+        // If successful: _helperData.AccountsCreated += 1;
+        // If accountscreated for this user is more than allowed, break the connection and leave.
+
+        _helperData.RegistrationAttempts += 1;
+        if (_helperData.RegistrationAttempts > ServerConstants.MAX_REGISTRATION_ATTEMPTS) {
+            _authHelperState = ServerStates.BREAKING_CONNECTION;
+        }
     }
 
     private void TransferResources()
     {
-        // TODO after registration, but this is necessary for asserts in Cleanup by the ListenerThread process.
-        _helperData.Resources = null;
+        // TODO after login
+
+        //but this one line is necessary for asserts in Cleanup by the ListenerThread process.
+        _helperData.ConnectionResources = null;
     }
 
 
