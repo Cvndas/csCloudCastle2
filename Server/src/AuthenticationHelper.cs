@@ -10,7 +10,7 @@ namespace Server.src;
 
 internal class AuthenticationHelper
 {
-    public AuthenticationHelper(int id)
+    public AuthenticationHelper(int id, CancellationToken token)
     {
         _helperData = new AuthenticationHelperData {
             Id = id,
@@ -19,11 +19,12 @@ internal class AuthenticationHelper
 
         CR_hasWork = false;
         _hasWorkLock = new object();
+        _cancellationToken = token;
 
         _authHelperState = ServerStates.NOT_CONNECTED;
 
-        Thread authenticationHelperThread = new(AuthenticatorHelperJob);
-        authenticationHelperThread.Start();
+        _authenticationHelperThread = new(AuthenticatorHelperJob);
+        _authenticationHelperThread.Start();
     }
 
     // Thread: Active thread of this helper.
@@ -40,6 +41,20 @@ internal class AuthenticationHelper
         }
     }
 
+    /// <summary>
+    /// This should only ever be called by the ListenerInstance
+    /// </summary>
+    public void PulseToJoinThread()
+    {
+        Debug.Assert(this.GetType() == typeof(ListenerInstance));
+        lock (_hasWorkLock) {
+            Monitor.Pulse(_hasWorkLock);
+        }
+        Debug.Assert(_helperData!.Resources!.Stream == null);
+        Debug.Assert(_helperData!.Resources!.TcpClient == null);
+        JoinAuthHelperThread();
+    }
+
     private class AuthenticationHelperData
     {
         // Id remains consistent throughout
@@ -51,9 +66,16 @@ internal class AuthenticationHelper
     // ---------- Private Variables -------- // 
     private readonly AuthenticationHelperData _helperData;
     private ServerStates _authHelperState;
+    private CancellationToken _cancellationToken;
+    private Thread _authenticationHelperThread;
 
 
     // ----------- CRITICAL --------------- //
+    /// <summary>
+    /// Thread: AuthHelper, waiting for work <br/>
+    /// Thread: AuthenticationManager, pulsing that there is work <br/>
+    /// Thread: ListenerInstance, Pulsing that CancellationToken has been invoked.
+    /// </summary>
     private bool CR_hasWork;
     private readonly object _hasWorkLock;
     // ------------------------------------ // 
@@ -73,8 +95,14 @@ internal class AuthenticationHelper
             try {
                 lock (_hasWorkLock) {
                     Debug.Assert(CR_hasWork == false);
+                    // Pulse 1: A client's resources have been added (unimplemented for now)
+                    // Pulse 2: Cancellation has been requested
                     Monitor.Wait(_hasWorkLock);
                     Debug.Assert(CR_hasWork == true);
+                }
+                if (_cancellationToken.IsCancellationRequested) {
+                    WriteLine($"Helper: {_helperData.Id} has had his cancellation token invoked.");
+                    break;
                 }
 
                 _authHelperState = ServerStates.ASSIGNED_TO_CLIENT;
@@ -104,6 +132,15 @@ internal class AuthenticationHelper
                 Debug.Assert(false);
             }
         }
+
+        WriteLine($"Helper: {_helperData.Id} has exited his thread, and it's ready to be joined.");
+    }
+
+    private void JoinAuthHelperThread()
+    {
+        WriteLine($"AuthHelper: {_helperData.Id} is trying to join his Job thread..");
+        _authenticationHelperThread.Join();
+        WriteLine($"AuthHelper: {_helperData.Id} has joined his Job thread.");
     }
 
 
@@ -132,10 +169,11 @@ internal class AuthenticationHelper
         return;
     }
 
-
-
-
-
+    private void TransferResources()
+    {
+        // TODO after registration, but this is necessary for asserts in Cleanup by the ListenerThread process.
+        _helperData.Resources = null;
+    }
 
 
     private void DPrintAuthStates()

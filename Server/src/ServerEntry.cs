@@ -7,6 +7,7 @@ global using System.Diagnostics;
 
 global using static System.Console;
 global using static CloudLib.CloudProtocol;
+global using static CloudLib.SenderReceiver;
 using System.ComponentModel;
 
 namespace Server.src;
@@ -26,13 +27,8 @@ public class ServerEntry
         Console.CancelKeyPress += ( (object? sender, ConsoleCancelEventArgs args) => CleanupResources() );
 
         _listenerInstance = ListenerInstance.Instance;
-        // TODO before registration: authenticationmanager should only be initialized if
-        // there are no authenticationManagers yet, if the number of managers is < the max,
-        // and if the listener has received an incoming connection.
-        AuthenticationManager authenticationManager = AuthenticationManager.Instance;
-
-
         _listenerInstance.Start();
+        // Note: The listener creates Authentication managers if necessary.
     }
 
     private static void CleanupResources()

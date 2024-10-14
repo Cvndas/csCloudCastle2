@@ -23,7 +23,8 @@ class ClientInstance
         _personalData = new PersonalData {
             Username = "",
             LoginAttempts = 0,
-            RegistrationAttempst = 0
+            RegistrationAttempst = 0,
+            AuthChoiceAttempts = 0
         };
     }
 
@@ -33,8 +34,11 @@ class ClientInstance
 
             RunAuthenticatorStateMachine();
         }
-        catch (ExitingProgramException) {
-            Console.WriteLine("Exiting program.");
+        catch (ExitingProgramException e) {
+            #if DEBUG
+            WriteLine("Exiting program message: " + e.Message);
+            #endif
+            WriteLine("Exiting program.");
             _connectionResources?.Cleanup();
         }
         return;
@@ -52,7 +56,7 @@ class ClientInstance
     private void DPrintState()
     {
 #if STATE_PRINTING
-        Console.WriteLine(_clientState);
+        WriteLine(_clientState);
 #endif
     }
 
@@ -89,7 +93,7 @@ class ClientInstance
             }
         }
         catch (IOException e) {
-            Console.WriteLine("IO Exception caught in RunAuthenticatorStateMachine: " + e.Message);
+            WriteLine("IO Exception caught in RunAuthenticatorStateMachine: " + e.Message);
             throw new ExitingProgramException("Caught IO Exception in RunAuthenticatorStateMachine");
         }
     }
@@ -97,7 +101,7 @@ class ClientInstance
     private void
     ConnectToServer()
     {
-        Console.WriteLine("Connecting to the server...");
+        WriteLine("Connecting to the server...");
         IPEndPoint ipEndPoint = new(ServerConstants.SERVER_IP, ServerConstants.SERVER_PORT);
         TcpClient tcpClient = new TcpClient();
         tcpClient.Connect(ipEndPoint);
@@ -110,7 +114,7 @@ class ClientInstance
     private async void
     WaitForAuthenticationHelper()
     {
-        // TODO - Test, before marking the authentication as complete.
+        // TODO - Test timer, before marking the authentication as complete.
         CancellationTokenSource source = new(5000);
         CancellationToken token = source.Token;
         try {
@@ -121,19 +125,23 @@ class ClientInstance
 
                 if (serverFlag == ServerFlags.AUTHENTICATOR_HELPER_ASSIGNED) {
                     Debug.Assert(payload.Count() == 0);
-                    Console.WriteLine("You are connected to the server!");
+                    WriteLine("You are connected to the server!");
                     _clientState = ClientStates.CONNECTED;
                     return;
                 }
                 else if (serverFlag == ServerFlags.QUEUE_POSITION) {
                     Debug.Assert(payload.Count() > 0);
                     string currentPosition = Encoding.UTF8.GetString(payload);
-                    Console.WriteLine("Position in queue: " + currentPosition);
+                    WriteLine("Position in queue: " + currentPosition);
+                }
+                else if (serverFlag == ServerFlags.OVERLOADED){
+                    WriteLine("The server is overloaded. Try again later.");
+                    throw new ExitingProgramException("The server was overloaded.");
                 }
             }
         }
         catch (OperationCanceledException) {
-            Console.WriteLine("Server timeout - Try again at a later time.");
+            WriteLine("Server timeout - Try again at a later time.");
             _clientState = ClientStates.EXITING_PROGRAM;
             return;
         }
@@ -141,12 +149,12 @@ class ClientInstance
     private void ReceiveAuthChoice()
     {
         while (true) {
-            Console.WriteLine("login: l ||| register: r");
+            WriteLine("login: l ||| register: r");
 
-            string? userResponse = Console.ReadLine();
+            string? userResponse = ReadLine();
 
             if (userResponse == null) {
-                Console.WriteLine("Failed to receive input");
+                WriteLine("Failed to receive input");
                 throw new ExitingProgramException("Failed to receive input in ReceiveAuthChoice");
             }
             if (userResponse == "l") {
@@ -158,7 +166,14 @@ class ClientInstance
                 return;
             }
             else {
-                Console.WriteLine("Invalid choice.");
+                WriteLine("Invalid choice.");
+                _personalData.AuthChoiceAttempts += 1;
+                // TODO : Do this server side
+                if (_personalData.AuthChoiceAttempts > ServerConstants.MAX_AUTH_CHOICE_ATTEMTPS)
+                {
+                    WriteLine("Too many attempts were made. Learn to read.");
+                    throw new ExitingProgramException("Too many Auth Choice attempts.");
+                }
             }
         }
     }

@@ -13,6 +13,7 @@ public static class ServerConstants
 
     public const int LOGIN_ATTEMPTS = 3;
     public const int REGISTRATION_ATTEMPTS = 3;
+    public const int MAX_AUTH_CHOICE_ATTEMTPS = 3;
 
     public const int MAX_USERNAME_LEN = sizeof(char) * 15;
     public const int MIN_USERNAME_LEN = sizeof(char) * 3;
@@ -32,6 +33,7 @@ public static class ServerConstants
 
     public const int HELPERS_PER_AUTHENTICATION_MANAGER = 2;
     public const int MAX_AUTHENTICATION_MANAGERS = 2;
+    public const int MAX_USERS_IN_AUTHENTICATION_QUEUE = 2;
 
 
 
