@@ -35,7 +35,6 @@ internal class ListenerInstance
         Stopwatch stopwatch = new Stopwatch();
         stopwatch.Start();
 
-        // TODO Before Chat : Increase the time to a reasonable level later.
         TimeSpan AuthManagerCleanupTime = TimeSpan.FromSeconds(ServerConstants.AUTH_MANAGER_CLEANUP_TIMEFRAME_SECONDS);
         _tcpListener.Start();
         while (true) {

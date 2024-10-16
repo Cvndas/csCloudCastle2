@@ -26,13 +26,13 @@ public static class ProtocolHeader
 
     public static int GetPayloadLen(byte[] message)
     {
-        return BitConverter.ToInt32(message, CloudProtocol.BYTE_LEN);
+        return BitConverter.ToInt32(message, ProtocolConstants.BYTE_LEN);
     }
 
     public static byte[] GetPayload(byte[] message, int payloadLen)
     {
         byte[] payload = new byte[payloadLen];
-        Array.Copy(message, CloudProtocol.HEADER_LEN, payload, 0, payloadLen);
+        Array.Copy(message, ProtocolConstants.HEADER_LEN, payload, 0, payloadLen);
         return payload;
     }
 

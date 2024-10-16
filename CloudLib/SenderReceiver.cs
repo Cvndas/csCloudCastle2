@@ -14,16 +14,13 @@ public static class SenderReceiver
     public static void SendMessage(NetworkStream stream, byte flag, byte[] payload)
     {
         int payloadLen = payload.Length;
-        byte[] sendBuffer = new byte[CloudProtocol.HEADER_LEN + payloadLen];
+        byte[] sendBuffer = new byte[ProtocolConstants.HEADER_LEN + payloadLen];
         byte[] payloadLengthBytes = BitConverter.GetBytes(payloadLen);
         sendBuffer[0] = flag;
-        Array.Copy(payloadLengthBytes, 0, sendBuffer, CloudProtocol.FLAG_LEN, payloadLengthBytes.Count());
-        Array.Copy(payload, 0, sendBuffer, CloudProtocol.HEADER_LEN, payloadLen);
+        Array.Copy(payloadLengthBytes, 0, sendBuffer, ProtocolConstants.FLAG_LEN, payloadLengthBytes.Count());
+        Array.Copy(payload, 0, sendBuffer, ProtocolConstants.HEADER_LEN, payloadLen);
         stream.Write(sendBuffer);
     }
-
-
-
 
 
     /// <summary>
@@ -33,14 +30,14 @@ public static class SenderReceiver
     public static (byte flag, byte[] payload) ReceiveMessage(NetworkStream stream)
     {
         try {
-            byte[] headerBuffer = new byte[CloudProtocol.HEADER_LEN];
+            byte[] headerBuffer = new byte[ProtocolConstants.HEADER_LEN];
             int headerBytesRead = 0;
 
             // TODO: Verify that SYNCHRONOUS .Read() does indeed throw an exception, and doesn't just 
             // read 0 bytes.
             do {
-                headerBytesRead += stream.Read(headerBuffer, 0, CloudProtocol.HEADER_LEN);
-            } while (headerBytesRead < CloudProtocol.HEADER_LEN);
+                headerBytesRead += stream.Read(headerBuffer, 0, ProtocolConstants.HEADER_LEN);
+            } while (headerBytesRead < ProtocolConstants.HEADER_LEN);
 
             byte flag = ProtocolHeader.GetGenericFlag(headerBuffer);
             int payloadLen = ProtocolHeader.GetPayloadLen(headerBuffer);
@@ -48,6 +45,10 @@ public static class SenderReceiver
             Debug.Assert(payloadLen >= 0);
             if (payloadLen < 0) {
                 return ((byte)ServerFlags.INVALID_FLAG, Array.Empty<byte>());
+            }
+
+            if (payloadLen == 0){
+                return (flag, Array.Empty<byte>());
             }
 
             byte[] payloadBuffer = new byte[payloadLen];
@@ -76,24 +77,28 @@ public static class SenderReceiver
     public static async Task<(byte flag, byte[] payload)> ReceiveMessageCancellable(NetworkStream stream, CancellationToken token)
     {
         try {
-            byte[] headerBuffer = new byte[CloudProtocol.HEADER_LEN];
+            byte[] headerBuffer = new byte[ProtocolConstants.HEADER_LEN];
             int headerBytesRead = 0;
             Task<int> headerBytesReadTask;
             int iterationBytesRead;
 
             do {
-                headerBytesReadTask = stream.ReadAsync(headerBuffer, 0, CloudProtocol.HEADER_LEN, token);
-                iterationBytesRead = await (headerBytesReadTask);
+                headerBytesReadTask = stream.ReadAsync(headerBuffer, 0, ProtocolConstants.HEADER_LEN, token);
+                iterationBytesRead = await headerBytesReadTask;
                 if (iterationBytesRead == 0){
                     throw new IOException("DISCONNECTION in ReceiveMessageCancellable");
                 }
                 headerBytesRead += iterationBytesRead;
-            } while (headerBytesRead < CloudProtocol.HEADER_LEN);
+            } while (headerBytesRead < ProtocolConstants.HEADER_LEN);
 
             byte flag = ProtocolHeader.GetGenericFlag(headerBuffer);
             int payloadLen = ProtocolHeader.GetPayloadLen(headerBuffer);
+
             if (payloadLen < 0) {
                 return ((byte)ServerFlags.INVALID_FLAG, Array.Empty<byte>());
+            }
+            else if (payloadLen == 0){
+                return (flag, Array.Empty<byte>());
             }
 
             byte[] payloadBuffer = new byte[payloadLen];

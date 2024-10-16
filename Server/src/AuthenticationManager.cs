@@ -36,6 +36,7 @@ internal class AuthenticationManager
         lock (_clientQueueLock) {
             if (CR_clientQueue.Count < ServerConstants.MAX_USERS_IN_AUTHENTICATION_QUEUE) {
                 CR_clientQueue.Enqueue(resources);
+                Monitor.Pulse(_clientQueueLock);
                 ret = true;
             }
         }
@@ -106,7 +107,6 @@ internal class AuthenticationManager
 
     private void AuthenticationManagerJob()
     {
-        // TODO Don't forget to process the token being cancelled.
         while (true) {
             AuthenticationHelper? helper;
             lock (_freeAuthHelpersLock) {
@@ -119,6 +119,7 @@ internal class AuthenticationManager
                     CR_freeAuthHelpers.TryDequeue(out helper);
                 }
             }
+            Console.WriteLine("A Helper is ready.");
 
             if (_token.IsCancellationRequested) {
                 break;
@@ -132,19 +133,22 @@ internal class AuthenticationManager
                     clientResources = CR_clientQueue.Dequeue();
                 }
                 else {
+                    // TODO : Missing a pulse.
                     Monitor.Wait(_clientQueueLock);
                     // Woken up either because of cancellation token, or because there is a client
                     CR_clientQueue.TryDequeue(out clientResources);
                 }
             }
+            Console.WriteLine("A client has been chosen.");
 
             if (_token.IsCancellationRequested) {
                 break;
             }
             Debug.Assert(clientResources != null);
 
-
+            Console.WriteLine("About to assign client");
             helper.AssignClient(clientResources!);
+            Console.WriteLine("Assigned client");
 
         }
         Console.WriteLine($"AuthenticationManager: {_id} has exited the Job, and is ready to be joined.");

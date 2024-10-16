@@ -46,6 +46,10 @@ internal class AuthenticationHelper
             _helperData.AccountsCreated = 0;
 
             CR_hasWork = true; // This bool is probably completely unnecessary, except for the assert.
+
+            // Inform the client that he has been assigned
+            SMail.SendFlag(resources.Stream!, ServerFlags.AUTHENTICATOR_HELPER_ASSIGNED);
+
             Monitor.Pulse(_hasWorkLock);
         }
     }
@@ -164,7 +168,7 @@ internal class AuthenticationHelper
         // Being assigned takes place in AuthenticationHelperjob
         Debug.Assert(_authHelperState == ServerStates.ASSIGNED_TO_CLIENT);
         CancellationTokenSource authProcessTimerSource =
-            new CancellationTokenSource(ServerConstants.AUTH_PROCESS_TIMEOUT_SECONDS);
+            new CancellationTokenSource(ServerConstants.AUTH_PROCESS_TIMEOUT_SECONDS * 1000);
         CancellationToken authProcessTimerToken = authProcessTimerSource.Token;
 
         while (true) {
@@ -218,10 +222,8 @@ internal class AuthenticationHelper
 
     private void ProcessRegistrationAttempt()
     {
-        // TODO Next - Finish, Server Side 
-        // And make this timer be used in the async read.
         CancellationTokenSource registrationTimerSource =
-            new CancellationTokenSource(ServerConstants.REGISTER_TIMEOUT_SECONDS);
+            new CancellationTokenSource(ServerConstants.REGISTER_TIMEOUT_SECONDS * 1000);
         CancellationToken registrationTimer = registrationTimerSource.Token;
 
         // The unmodified client will send no Registration requests if it has reached the max.
@@ -259,7 +261,10 @@ internal class AuthenticationHelper
             return;
         }
 
-        DatabaseFlags result = UserDatabase.Instance.TryToRegister(payload);
+        string[] payloadSplit = payload.Split(" ");
+        string username = payloadSplit[0];
+        string password = payloadSplit[1];
+        DatabaseFlags result = UserDatabase.TryToRegister(username, password);
         if (result == DatabaseFlags.ACCOUNT_CREATED) {
             _helperData.AccountsCreated += 1;
             SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlags.REGISTRATION_SUCCESSFUL);

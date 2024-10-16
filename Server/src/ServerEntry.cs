@@ -5,7 +5,7 @@ global using System.Net.Sockets;
 global using System.Net;
 global using System.Diagnostics;
 
-global using static CloudLib.CloudProtocol;
+global using static CloudLib.ProtocolConstants;
 global using static CloudLib.SenderReceiver;
 using System.ComponentModel;
 
@@ -17,21 +17,19 @@ public class ServerEntry
     static ListenerInstance? _listenerInstance;
     public static void Main()
     {
-        #if DEBUG
+#if DEBUG
         Console.WriteLine("Server - Debug");
-        #else  
+#else
         Console.WriteLine("Server - Release");
-        #endif
+#endif
 
-        if (!System.IO.Directory.GetCurrentDirectory().EndsWith("3_CloudCastle2")){
+        if (!System.IO.Directory.GetCurrentDirectory().EndsWith("3_CloudCastle2")) {
             Console.WriteLine("Please launch the server via the official launch script, or via"
             + " the debugging task.");
             return;
         }
-        UserDatabase constructorInstanceCheckblahblah = UserDatabase.Instance;
 
-        Console.CancelKeyPress += ( (object? sender, ConsoleCancelEventArgs args) => CleanupResources() );
-
+        Console.CancelKeyPress += ((object? sender, ConsoleCancelEventArgs args) => CleanupResources());
 
         _listenerInstance = ListenerInstance.Instance;
         _listenerInstance.Start();

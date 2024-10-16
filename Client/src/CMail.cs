@@ -48,7 +48,8 @@ internal class CMail
 
     public static void SendString(ClientFlags flag, NetworkStream stream, String payloadString)
     {
-        return;
+        byte[] payloadBytes = Encoding.UTF8.GetBytes(payloadString);
+        SenderReceiver.SendMessage(stream, (byte) flag, payloadBytes);
     }
 
     public static void SendChatMessage(NetworkStream stream, string username, string body)

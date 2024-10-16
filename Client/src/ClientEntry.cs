@@ -3,7 +3,7 @@ global using System.Net.Sockets;
 global using System.Net;
 global using System.Diagnostics;
 
-global using static CloudLib.CloudProtocol;
+global using static CloudLib.ProtocolConstants;
 
 
 namespace Client.src;
@@ -23,7 +23,7 @@ class Program
             ClientInstance instance = ClientInstance.Instance();
             instance.Start();
         }
-        catch (Exception e){
+        catch (Exception e) {
             Console.WriteLine("Unhandled exception caught in ClientEntry:");
             Console.WriteLine("Exception Type: " + e.GetType());
             Console.WriteLine("Message: " + e.Message);

@@ -17,7 +17,6 @@ internal partial class ClientInstance
                         break;
                     case ClientStates.CONNECTED:
                         WaitForAuthenticationHelper();
-                        Console.WriteLine("Success? what the fuck is happening?");
                         break;
                     case ClientStates.ASSIGNED:
                         ReceiveAuthChoice();
@@ -82,7 +81,6 @@ internal partial class ClientInstance
             }
 
 
-
             // Error checking
             if (serverFlag == ServerFlags.DISCONNECTION) {
                 throw new IOException("Disconnected from server in WaitForAuthenticationHelper().");
@@ -119,6 +117,11 @@ internal partial class ClientInstance
                 return;
             }
             else if (userResponse == "r") {
+                if (_personalData.AccountsCreated >= ServerConstants.MAX_ACCOUNTS_PER_SESSION) {
+                    Console.WriteLine("You already made " + ServerConstants.MAX_ACCOUNTS_PER_SESSION + " accounts. Just log in, bro.");
+                    _clientState = ClientStates.CHOOSING_AUTHENTICATION_METHOD;
+                    return;
+                }
                 CMail.SendFlag(_connectionResources!.Stream!, ClientFlags.REGISTRATION_INIT);
                 _clientState = ClientStates.REGISTRATION_CHOSEN;
                 return;
@@ -146,11 +149,8 @@ internal partial class ClientInstance
 
     private void ProcessRegistration()
     {
-        // TODO Next - Finish, Client Side
-        if (_personalData.AccountsCreated > ServerConstants.MAX_ACCOUNTS_PER_SESSION) {
-            Console.WriteLine("You already made " + ServerConstants.MAX_ACCOUNTS_PER_SESSION + " accounts. Just log in, bro.");
-            _clientState = ClientStates.CHOOSING_AUTHENTICATION_METHOD;
-            return;
+        if (_personalData.RegistrationAttempst >= ServerConstants.MAX_REGISTRATION_ATTEMPTS) {
+            throw new ExitingProgramException("Too many registration attempts made.");
         }
 
         Lazy<string> formatSpecsUsername = new Lazy<string>(() =>
@@ -161,7 +161,7 @@ internal partial class ClientInstance
         );
 
         Console.WriteLine("Please provide your credentials in the following format: (NOTE! Passwords are stored in plain text.)");
-        Console.WriteLine("[username password]");
+        Console.Write("[username password] ");
         string? userCreds = Console.ReadLine() ?? throw new ExitingProgramException("ProcessRegistration(): User input was null.");
 
         MessageValidationResult credsFormatEval = MessageValidation.ValidateUsernamePassword(userCreds);
@@ -213,14 +213,11 @@ internal partial class ClientInstance
         else if (serverResponseFlag == ServerFlags.USERNAME_TAKEN) {
             Console.WriteLine("Username was already taken.");
         }
-        else if (serverResponseFlag == ServerFlags.DATABASE_ERROR){
+        else if (serverResponseFlag == ServerFlags.DATABASE_ERROR) {
             Console.WriteLine("The database experienced an error. Try again some other time.");
             throw new ExitingProgramException("Database error in ProcessRegistration()");
         }
 
         _personalData.RegistrationAttempst += 1;
-        if (_personalData.RegistrationAttempst > ServerConstants.MAX_REGISTRATION_ATTEMPTS) {
-            throw new ExitingProgramException("Too many registration attempts made.");
-        }
     }
 }

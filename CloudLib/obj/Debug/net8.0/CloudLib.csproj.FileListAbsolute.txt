@@ -10,15 +10,3 @@
 /Volumes/eidasDRIVE/Dropbox/Programming/2024/3_CloudCastle2/CloudLib/obj/Debug/net8.0/refint/CloudLib.dll
 /Volumes/eidasDRIVE/Dropbox/Programming/2024/3_CloudCastle2/CloudLib/obj/Debug/net8.0/CloudLib.pdb
 /Volumes/eidasDRIVE/Dropbox/Programming/2024/3_CloudCastle2/CloudLib/obj/Debug/net8.0/ref/CloudLib.dll
-/home/eidas/Dropbox/Programming/2024/3_CloudCastle2/CloudLib/bin/Debug/net8.0/CloudLib.deps.json
-/home/eidas/Dropbox/Programming/2024/3_CloudCastle2/CloudLib/bin/Debug/net8.0/CloudLib.dll
-/home/eidas/Dropbox/Programming/2024/3_CloudCastle2/CloudLib/bin/Debug/net8.0/CloudLib.pdb
-/home/eidas/Dropbox/Programming/2024/3_CloudCastle2/CloudLib/obj/Debug/net8.0/CloudLib.GeneratedMSBuildEditorConfig.editorconfig
-/home/eidas/Dropbox/Programming/2024/3_CloudCastle2/CloudLib/obj/Debug/net8.0/CloudLib.AssemblyInfoInputs.cache
-/home/eidas/Dropbox/Programming/2024/3_CloudCastle2/CloudLib/obj/Debug/net8.0/CloudLib.AssemblyInfo.cs
-/home/eidas/Dropbox/Programming/2024/3_CloudCastle2/CloudLib/obj/Debug/net8.0/CloudLib.csproj.CoreCompileInputs.cache
-/home/eidas/Dropbox/Programming/2024/3_CloudCastle2/CloudLib/obj/Debug/net8.0/CloudLib.sourcelink.json
-/home/eidas/Dropbox/Programming/2024/3_CloudCastle2/CloudLib/obj/Debug/net8.0/CloudLib.dll
-/home/eidas/Dropbox/Programming/2024/3_CloudCastle2/CloudLib/obj/Debug/net8.0/refint/CloudLib.dll
-/home/eidas/Dropbox/Programming/2024/3_CloudCastle2/CloudLib/obj/Debug/net8.0/CloudLib.pdb
-/home/eidas/Dropbox/Programming/2024/3_CloudCastle2/CloudLib/obj/Debug/net8.0/ref/CloudLib.dll

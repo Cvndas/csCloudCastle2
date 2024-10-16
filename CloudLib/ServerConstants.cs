@@ -1,5 +1,8 @@
+#define TIMEOUT_DISABLED
 using System.Net;
 using CloudLib;
+
+namespace CloudLib;
 
 /// <summary>
 /// Constants for how the Server and Client interact, on top of the protocol
@@ -7,6 +10,13 @@ using CloudLib;
 /// </summary>
 public static class ServerConstants
 {
+
+#if TIMEOUT_DISABLED
+    public static readonly int TIMEOUT_MULTIPLIER = 200;
+#else
+    public static readonly int TIMEOUT_MULTIPLIER = 1;
+#endif
+
     public static readonly IPAddress SERVER_IP = IPAddress.Loopback;
     public static readonly int SERVER_PORT = 56789;
 
@@ -16,12 +26,12 @@ public static class ServerConstants
     public const int MAX_AUTH_CHOICE_ATTEMTPS = 3;
     public const int MAX_ACCOUNTS_PER_SESSION = 2;
 
-    public const int MAX_USERNAME_LEN = sizeof(char) * 15;
-    public const int MIN_USERNAME_LEN = sizeof(char) * 3;
-    public const int MAX_PASSWORD_LEN = sizeof(char) * 15;
-    public const int MIN_PASSWORD_LEN = sizeof(char) * 3;
+    public const int MAX_USERNAME_LEN = 15;
+    public const int MIN_USERNAME_LEN = 2;
+    public const int MAX_PASSWORD_LEN = 15;
+    public const int MIN_PASSWORD_LEN = 3;
 
-    public const int MAX_FILE_SIZE = CloudProtocol.MAX_PAYLOAD_LEN;
+    public const int MAX_FILE_SIZE = ProtocolConstants.MAX_PAYLOAD_LEN;
     public const int MAX_STORED_FILES = 5;
     public const int STORAGE_CAPACITY = MAX_FILE_SIZE * MAX_STORED_FILES;
 
@@ -38,11 +48,12 @@ public static class ServerConstants
 
     public const int AUTH_MANAGER_BASE_ID = 100;
     public const int AUTH_MANAGER_ID_INCREMENT = 100;
-    public const int AUTH_MANAGER_CLEANUP_TIMEFRAME_SECONDS = 1;
 
-    public const int AUTH_ASSIGNMENT_TIMEOUT_SECONDS = 60000;
 
-    public const int REGISTER_TIMEOUT_SECONDS = 15;
-    public const int LOGIN_TIMEOUT_SECONDS = 15;
-    public const int AUTH_PROCESS_TIMEOUT_SECONDS = REGISTER_TIMEOUT_SECONDS + LOGIN_TIMEOUT_SECONDS + 20;
+
+    public static readonly int AUTH_MANAGER_CLEANUP_TIMEFRAME_SECONDS = 1 * TIMEOUT_MULTIPLIER;
+    public static readonly int AUTH_ASSIGNMENT_TIMEOUT_SECONDS = 10 * TIMEOUT_MULTIPLIER;
+    public static readonly int REGISTER_TIMEOUT_SECONDS = 15 * TIMEOUT_MULTIPLIER;
+    public static readonly int LOGIN_TIMEOUT_SECONDS = 15 * TIMEOUT_MULTIPLIER;
+    public static readonly int AUTH_PROCESS_TIMEOUT_SECONDS = (REGISTER_TIMEOUT_SECONDS + LOGIN_TIMEOUT_SECONDS + 20) * TIMEOUT_MULTIPLIER;
 }
