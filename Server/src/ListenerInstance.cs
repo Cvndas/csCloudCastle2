@@ -107,7 +107,7 @@ internal class ListenerInstance
                 return;
             }
             else {
-                SSendRecv.SendFlag(resources!.Stream!, ServerFlags.OVERLOADED);
+                SMail.SendFlag(resources!.Stream!, ServerFlags.OVERLOADED);
             }
         }
     }

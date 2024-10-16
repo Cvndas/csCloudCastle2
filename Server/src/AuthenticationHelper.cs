@@ -26,6 +26,8 @@ internal class AuthenticationHelper
 
         _authHelperState = ServerStates.NOT_CONNECTED;
 
+        _consolePreamble = $"AuthHelper {_helperData.Id}: ";
+
         _authenticationHelperThread = new(AuthenticationHelperJob);
         _authenticationHelperThread.Start();
     }
@@ -74,6 +76,7 @@ internal class AuthenticationHelper
     private ServerStates _authHelperState;
     private CancellationToken _cancellationToken;
     private Thread _authenticationHelperThread;
+    private string _consolePreamble = "";
 
 
     // ----------- CRITICAL --------------- //
@@ -156,18 +159,24 @@ internal class AuthenticationHelper
     {
         // Being assigned takes place in AuthenticationHelperjob
         Debug.Assert(_authHelperState == ServerStates.ASSIGNED_TO_CLIENT);
+        CancellationTokenSource authProcessTimerSource =
+            new CancellationTokenSource(ServerConstants.AUTH_PROCESS_TIMEOUT_SECONDS);
+        CancellationToken authProcessTimerToken = authProcessTimerSource.Token;
 
         while (true) {
             DPrintAuthStates();
             switch (_authHelperState) {
                 case ServerStates.ASSIGNED_TO_CLIENT:
-                    ProcessAuthenticationChoice();
+                    ProcessAuthenticationChoice(authProcessTimerToken);
                     break;
                 case ServerStates.REGISTRATION_REQUEST_RECEIVED:
                     ProcessRegistrationAttempt();
                     break;
                 case ServerStates.BREAKING_CONNECTION:
                     // TODO Before login
+                    Debug.Assert(false);
+                    break;
+                case ServerStates.PASSED_CONN_INFO_TO_DASHBOARD:
                     Debug.Assert(false);
                     break;
                 default:
@@ -177,13 +186,18 @@ internal class AuthenticationHelper
         }
     }
 
-    private void ProcessAuthenticationChoice()
+    private void ProcessAuthenticationChoice(CancellationToken authProcessTimerToken)
     {
-        ClientFlags flag = SSendRecv.ReceiveFlag(_helperData.ConnectionResources!.Stream!);
+        (ClientFlags flag, _) = SMail.ReceiveMessageCancellable(_helperData.ConnectionResources!.Stream!, authProcessTimerToken);
 
-        if (flag == ClientFlags.DISCONNECTED) {
+        if (SMail.ClientDisconnected(flag)) {
             _authHelperState = ServerStates.BREAKING_CONNECTION;
         }
+        else if (SMail.ReadWasCanceled(flag)) {
+            Console.WriteLine(_consolePreamble + "Client timeout in ProcessAuthenticationChoice - bc");
+            _authHelperState = ServerStates.BREAKING_CONNECTION;
+        }
+
         else if (flag == ClientFlags.LOGIN_INIT) {
             _authHelperState = ServerStates.LOGIN_REQUEST_RECEIVED;
         }
@@ -192,7 +206,7 @@ internal class AuthenticationHelper
         }
 
         else {
-            Console.WriteLine("Received invalid flag in ProcessAuthenticationChoice: " + flag);
+            Console.WriteLine(_consolePreamble + "Received invalid flag in ProcessAuthenticationChoice: " + flag + " - bc");
             _authHelperState = ServerStates.BREAKING_CONNECTION;
         }
     }
@@ -200,9 +214,13 @@ internal class AuthenticationHelper
     private void ProcessRegistrationAttempt()
     {
         // TODO Next - Finish, Server Side 
+        // And make this timer be used in the async read.
+        CancellationTokenSource registrationTimerSource =
+            new CancellationTokenSource(ServerConstants.REGISTER_TIMEOUT_SECONDS);
+        CancellationToken registrationTimer = registrationTimerSource.Token;
 
         // The unmodified client will send no Registration requests if it has reached the max.
-        if (_helperData.AccountsCreated > ServerConstants.MAX_ACCOUNTS_PER_SESSION){
+        if (_helperData.AccountsCreated > ServerConstants.MAX_ACCOUNTS_PER_SESSION) {
             // therefore, if this code is triggered, the user is hacking
             _authHelperState = ServerStates.BREAKING_CONNECTION;
             return;

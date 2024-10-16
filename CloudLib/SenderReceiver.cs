@@ -36,6 +36,8 @@ public static class SenderReceiver
             byte[] headerBuffer = new byte[CloudProtocol.HEADER_LEN];
             int headerBytesRead = 0;
 
+            // TODO: Verify that SYNCHRONOUS .Read() does indeed throw an exception, and doesn't just 
+            // read 0 bytes.
             do {
                 headerBytesRead += stream.Read(headerBuffer, 0, CloudProtocol.HEADER_LEN);
             } while (headerBytesRead < CloudProtocol.HEADER_LEN);
@@ -69,7 +71,7 @@ public static class SenderReceiver
     /// <summary>
     /// Blocking read function that can be cancelled. <br/>
     /// Does NOT throw an error. <br/>
-    /// Checkk ServerFlags.DISCONNECTION and ServerFlags.READ_CANCELED
+    /// Check ServerFlags.DISCONNECTION and ServerFlags.READ_CANCELED
     /// </summary>
     public static async Task<(byte flag, byte[] payload)> ReceiveMessageCancellable(NetworkStream stream, CancellationToken token)
     {

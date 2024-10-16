@@ -42,5 +42,7 @@ public static class ServerConstants
 
     public const int AUTH_ASSIGNMENT_TIMEOUT_SECONDS = 60000;
 
-
+    public const int REGISTER_TIMEOUT_SECONDS = 15;
+    public const int LOGIN_TIMEOUT_SECONDS = 15;
+    public const int AUTH_PROCESS_TIMEOUT_SECONDS = REGISTER_TIMEOUT_SECONDS + LOGIN_TIMEOUT_SECONDS + 20;
 }

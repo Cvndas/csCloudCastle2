@@ -5,7 +5,7 @@ namespace Client.src;
 /// <summary>
 /// Client-specific send/receive functions using CloudLib.SenderReceiver.cs
 /// </summary>
-internal class CSendRecv
+internal class CMail
 {
 
     /// <summary>
@@ -46,7 +46,8 @@ internal class CSendRecv
         SenderReceiver.SendMessage(stream, (byte)flag, Array.Empty<byte>());
     }
 
-    public static void SendString(ClientFlags flag, NetworkStream stream, String payloadString){
+    public static void SendString(ClientFlags flag, NetworkStream stream, String payloadString)
+    {
         return;
     }
 
@@ -55,12 +56,16 @@ internal class CSendRecv
         Debug.Assert(false);
     }
 
+    /// <summary>
+    /// Upon disconnection, flag is set to ServerFlags.DISCONNECTION <br/>
+    /// Doesn't throw exceptions.
+    /// </summary>
     public static ServerFlags ReceiveFlag(NetworkStream stream)
     {
         (byte flag, byte[] payload) receivedMessage = SenderReceiver.ReceiveMessage(stream);
 
         // The asserts are fine for the client, but the server should handle this by kicking the client.
-        if (receivedMessage.payload.Length != 0){
+        if (receivedMessage.payload.Length != 0) {
             Console.WriteLine("ReceiveFlag: Expected payload.Length to be 0.");
             return ServerFlags.DISCONNECTION;
         }

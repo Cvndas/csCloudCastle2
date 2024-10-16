@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CloudLib")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3a823ec5b57abd1476dbc961d4b8bf112924c54d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+fbcff528fd9120e359f061eeebb3208718eb45fc")]
 [assembly: System.Reflection.AssemblyProductAttribute("CloudLib")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CloudLib")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
