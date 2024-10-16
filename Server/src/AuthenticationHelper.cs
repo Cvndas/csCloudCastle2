@@ -243,9 +243,14 @@ internal class AuthenticationHelper
             Console.WriteLine(_consolePreamble + "timeout in ProcessRegistrationAttempt() - bc");
             return;
         }
+        else if (flag != ClientFlags.REGISTRATION_USERNAME_PASSWORD){
+            Console.WriteLine(_consolePreamble + "received invalid flag from user in ProcessRegistrationAttempt");
+            _authHelperState = ServerStates.BREAKING_CONNECTION;
+            return;
+        }
         // ----------------------------------------------------------------- //
 
-        // --------------------------- HANDLING USER RESPONSES --------------------- //
+        // --------------------------- HANDLING DATABASE RESPONSES --------------------- //
         // The user should handle each failure case personally. We just need to know if it's correct or not.
         // If it's incorrect, then the user modified the client.
         if (!(MessageValidation.ValidateUsernamePassword(payload) == MessageValidationResult.OK)) {
@@ -254,7 +259,7 @@ internal class AuthenticationHelper
             return;
         }
 
-        DatabaseFlags result = UserDatabase.TryToRegister(payload);
+        DatabaseFlags result = UserDatabase.Instance.TryToRegister(payload);
         if (result == DatabaseFlags.ACCOUNT_CREATED) {
             _helperData.AccountsCreated += 1;
             SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlags.REGISTRATION_SUCCESSFUL);
@@ -274,6 +279,8 @@ internal class AuthenticationHelper
             _authHelperState = ServerStates.BREAKING_CONNECTION;
             return;
         }
+        // --------------------------------------------------------------------------- //
+        Debug.Assert(result == DatabaseFlags.USERNAME_TAKEN);
 
         // TODO : Assert that this is always called if no disconnection AND registration was unsuccessful
         _helperData.RegistrationAttempts += 1;
@@ -283,7 +290,7 @@ internal class AuthenticationHelper
         }
     }
 
-    private void TransferResources()
+    private void TransferResourcesToDashboard()
     {
         // TODO after login
 

@@ -23,11 +23,20 @@ public class ServerEntry
         Console.WriteLine("Server - Release");
         #endif
 
+        if (!System.IO.Directory.GetCurrentDirectory().EndsWith("3_CloudCastle2")){
+            Console.WriteLine("Please launch the server via the official launch script, or via"
+            + " the debugging task.");
+            return;
+        }
+        UserDatabase constructorInstanceCheckblahblah = UserDatabase.Instance;
+
         Console.CancelKeyPress += ( (object? sender, ConsoleCancelEventArgs args) => CleanupResources() );
+
 
         _listenerInstance = ListenerInstance.Instance;
         _listenerInstance.Start();
-        // Note: The listener creates Authentication managers if necessary.
+
+        // Note: The listener creates its own Authentication managers when necessary.
     }
 
     private static void CleanupResources()

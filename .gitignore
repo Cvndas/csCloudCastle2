@@ -5,3 +5,5 @@ CloudLib/bin
 Server/obj
 Client/obj
 CloudLib/obj
+
+Server/UserDatabase
