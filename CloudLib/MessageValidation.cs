@@ -20,10 +20,19 @@ public class MessageValidation
     public static MessageValidationResult ValidateUsernamePassword(string usernamePassword)
     {
         string[] chunked = usernamePassword.Split(" ");
+
+        bool wrongMessageFormat = chunked.Length != 2;
+        if (wrongMessageFormat){
+            return MessageValidationResult.WRONG_MESSAGE_FORMAT;
+        }
+
         string username = chunked[0]; 
         string password = chunked[1];
 
-        bool wrongMessageFormat = (chunked.Length < 2 || username == "" || password == "" || chunked.Length > 2);
+        wrongMessageFormat = username == "" || password == "";
+        if (wrongMessageFormat){
+            return MessageValidationResult.WRONG_MESSAGE_FORMAT;
+        }
 
         bool usernameTooLong = username.Length > ServerConstants.MAX_USERNAME_LEN;
         bool usernameTooShort = username.Length < ServerConstants.MIN_USERNAME_LEN;
@@ -43,9 +52,6 @@ public class MessageValidation
         }
         else if (passwordTooLong){
             return MessageValidationResult.PASSWORD_TOO_LONG;
-        }
-        else if (wrongMessageFormat){
-            return MessageValidationResult.WRONG_MESSAGE_FORMAT;
         }
         return MessageValidationResult.OK;
     }

@@ -12,6 +12,7 @@ internal class AuthenticationHelper
 {
     public AuthenticationHelper(int id, CancellationToken token)
     {
+        // Note : It's quite arbitrary which data goes in here. Could use a refactor in the future.
         _helperData = new AuthenticationHelperData {
             Id = id,
             ConnectionResources = null,
@@ -40,6 +41,9 @@ internal class AuthenticationHelper
             Debug.Assert(CR_hasWork == false);
 
             _helperData.ConnectionResources = resources;
+            _helperData.LoginAttempts = 0;
+            _helperData.RegistrationAttempts = 0;
+            _helperData.AccountsCreated = 0;
 
             CR_hasWork = true; // This bool is probably completely unnecessary, except for the assert.
             Monitor.Pulse(_hasWorkLock);
@@ -191,10 +195,11 @@ internal class AuthenticationHelper
         (ClientFlags flag, _) = SMail.ReceiveMessageCancellable(_helperData.ConnectionResources!.Stream!, authProcessTimerToken);
 
         if (SMail.ClientDisconnected(flag)) {
+            Console.WriteLine(_consolePreamble + "Client disconnected in ProcessAuthenticationChoice() - bc");
             _authHelperState = ServerStates.BREAKING_CONNECTION;
         }
         else if (SMail.ReadWasCanceled(flag)) {
-            Console.WriteLine(_consolePreamble + "Client timeout in ProcessAuthenticationChoice - bc");
+            Console.WriteLine(_consolePreamble + "Client timeout in ProcessAuthenticationChoice() - bc");
             _authHelperState = ServerStates.BREAKING_CONNECTION;
         }
 
@@ -225,16 +230,55 @@ internal class AuthenticationHelper
             _authHelperState = ServerStates.BREAKING_CONNECTION;
             return;
         }
-        // Code
-        // Expect to receive ClientFlags.REGISTRATION_USERNAME_PASSWORD followed by "username password"
-        // Check the validity of the input, then check if it's not already taken, then respond with
-        // appropriate flags.
+        // --------------------------- READING ----------------------------- //
+        (ClientFlags flag, string payload) =
+            SMail.ReceiveStringCancellable(_helperData.ConnectionResources!.Stream!, registrationTimer);
+        if (SMail.ClientDisconnected(flag)) {
+            _authHelperState = ServerStates.BREAKING_CONNECTION;
+            Console.WriteLine(_consolePreamble + "client disconnected in ProcessRegistrationAttempt() - bc");
+            return;
+        }
+        else if (SMail.ReadWasCanceled(flag)) {
+            _authHelperState = ServerStates.BREAKING_CONNECTION;
+            Console.WriteLine(_consolePreamble + "timeout in ProcessRegistrationAttempt() - bc");
+            return;
+        }
+        // ----------------------------------------------------------------- //
 
-        // If successful: _helperData.AccountsCreated += 1;
-        // If accountscreated for this user is more than allowed, break the connection and leave.
+        // --------------------------- HANDLING USER RESPONSES --------------------- //
+        // The user should handle each failure case personally. We just need to know if it's correct or not.
+        // If it's incorrect, then the user modified the client.
+        if (!(MessageValidation.ValidateUsernamePassword(payload) == MessageValidationResult.OK)) {
+            Console.WriteLine(_consolePreamble + "user modified client, sent invalid username password in ProcessRegistrationAttempt() - bc");
+            _authHelperState = ServerStates.BREAKING_CONNECTION;
+            return;
+        }
 
+        DatabaseFlags result = UserDatabase.TryToRegister(payload);
+        if (result == DatabaseFlags.ACCOUNT_CREATED) {
+            _helperData.AccountsCreated += 1;
+            SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlags.REGISTRATION_SUCCESSFUL);
+            _authHelperState = ServerStates.ASSIGNED_TO_CLIENT;
+            return;
+        }
+        else if (result == DatabaseFlags.USERNAME_TAKEN) {
+            SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlags.USERNAME_TAKEN);
+        }
+        else if (result == DatabaseFlags.USERNAME_PASS_VALIDATION_ERROR) {
+            Console.WriteLine(_consolePreamble + "programming error in ProcessRegistrationAttempt(): wrong user_pass format - bc");
+            _authHelperState = ServerStates.BREAKING_CONNECTION;
+            return;
+        }
+        else if (result == DatabaseFlags.DATABASE_ERROR) {
+            Console.WriteLine(_consolePreamble+"database error in ProcessRegistrationAttempt()");
+            _authHelperState = ServerStates.BREAKING_CONNECTION;
+            return;
+        }
+
+        // TODO : Assert that this is always called if no disconnection AND registration was unsuccessful
         _helperData.RegistrationAttempts += 1;
-        if (_helperData.RegistrationAttempts > ServerConstants.MAX_REGISTRATION_ATTEMPTS) {
+        if (_helperData.RegistrationAttempts >= ServerConstants.MAX_REGISTRATION_ATTEMPTS) {
+            Console.WriteLine(_consolePreamble + "user made too many registration attempts in ProcessRegistrationAttempt() - bc");
             _authHelperState = ServerStates.BREAKING_CONNECTION;
         }
     }

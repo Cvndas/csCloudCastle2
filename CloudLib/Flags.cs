@@ -73,6 +73,7 @@ public enum ServerFlags : byte
     USERNAME_TOO_SHORT,
     PASSWORD_TOO_LONG,
     PASSWORD_TOO_SHORT,
+    DATABASE_ERROR,
     MAX_REGISTRATION_ATTEMPTS_REACHED, // Terminate connection after sending.
     // ---------------------- // 
 
@@ -118,3 +119,14 @@ public enum ServerFlags : byte
     // -------------- // 
 }
 
+public enum DatabaseFlags : byte
+{
+    INVALID_FLAG,
+    INVALID_IGNORE,
+    INVALID_IGNORE_TWO,
+    ACCOUNT_CREATED,
+    USERNAME_TAKEN,
+    USERNAME_PASS_VALIDATION_ERROR,
+    DATABASE_ERROR,
+
+}

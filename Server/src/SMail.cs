@@ -42,6 +42,12 @@ internal class SMail
         return ((ClientFlags)receivedData.flag, receivedData.payload);
     }
 
+    public static (ClientFlags clientFlag, string payload) ReceiveStringCancellable(NetworkStream stream, CancellationToken token)
+    {
+        (ClientFlags retFlag, byte[] payload) = ReceiveMessageCancellable(stream, token);
+        return (retFlag, Encoding.UTF8.GetString(payload));
+    }
+
     public static bool ClientDisconnected(ClientFlags clientFlag)
     {
         return ((ServerFlags)clientFlag == ServerFlags.DISCONNECTION);

@@ -153,9 +153,43 @@ internal partial class ClientInstance
             return;
         }
 
+        Lazy<string> formatSpecsUsername = new Lazy<string>(() =>
+            $"Minimum length: {ServerConstants.MIN_USERNAME_LEN}, maximum length: {ServerConstants.MAX_USERNAME_LEN}"
+        );
+        Lazy<string> formatSpecsPassword = new Lazy<string>(() =>
+            $"Minimum length: {ServerConstants.MIN_PASSWORD_LEN}, maximum length: {ServerConstants.MAX_PASSWORD_LEN}"
+        );
+
         Console.WriteLine("Please provide your credentials in the following format: (NOTE! Passwords are stored in plain text.)");
         Console.WriteLine("[username password]");
         string? userCreds = Console.ReadLine() ?? throw new ExitingProgramException("ProcessRegistration(): User input was null.");
+
+        MessageValidationResult credsFormatEval = MessageValidation.ValidateUsernamePassword(userCreds);
+        switch (credsFormatEval) {
+            case MessageValidationResult.OK:
+                break;
+            case MessageValidationResult.USERNAME_TOO_LONG:
+                Console.WriteLine("Username was too long: " + formatSpecsUsername);
+                _personalData.RegistrationAttempst += 1;
+                return;
+            case MessageValidationResult.USERNAME_TOO_SHORT:
+                Console.WriteLine("Username was too short: " + formatSpecsUsername);
+                _personalData.RegistrationAttempst += 1;
+                return;
+            case MessageValidationResult.PASSWORD_TOO_LONG:
+                Console.WriteLine("Password was too long: " + formatSpecsPassword);
+                _personalData.RegistrationAttempst += 1;
+                return;
+            case MessageValidationResult.PASSWORD_TOO_SHORT:
+                Console.WriteLine("Password was too short: " + formatSpecsPassword);
+                _personalData.RegistrationAttempst += 1;
+                return;
+            case MessageValidationResult.WRONG_MESSAGE_FORMAT:
+                Console.WriteLine("Format was incorrect.");
+                _personalData.RegistrationAttempst += 1;
+                return;
+        }
+
 
         CMail.SendString(ClientFlags.REGISTRATION_USERNAME_PASSWORD, _connectionResources!.Stream!, userCreds);
         ServerFlags serverResponseFlag = CMail.ReceiveFlag(_connectionResources!.Stream!);
@@ -166,14 +200,23 @@ internal partial class ClientInstance
                             + "The timelimit is " + ServerConstants.REGISTER_TIMEOUT_SECONDS + "seconds, retard.");
             throw new ExitingProgramException("Disconnection in ProcessRegistration()");
         }
-
+        // ------------ SUCCESS -------------------------------------------- // 
         if (serverResponseFlag == ServerFlags.REGISTRATION_SUCCESSFUL) {
+            Console.WriteLine("Account created successfully!");
             _personalData.AccountsCreated += 1;
             // Go back to the screen where you choose between logging in and registering.
             _clientState = ClientStates.CHOOSING_AUTHENTICATION_METHOD;
+            return;
         }
+        // ------------------------------------------------------------------ //
 
-
+        else if (serverResponseFlag == ServerFlags.USERNAME_TAKEN) {
+            Console.WriteLine("Username was already taken.");
+        }
+        else if (serverResponseFlag == ServerFlags.DATABASE_ERROR){
+            Console.WriteLine("The database experienced an error. Try again some other time.");
+            throw new ExitingProgramException("Database error in ProcessRegistration()");
+        }
 
         _personalData.RegistrationAttempst += 1;
         if (_personalData.RegistrationAttempst > ServerConstants.MAX_REGISTRATION_ATTEMPTS) {
