@@ -34,6 +34,7 @@ public class ServerEntry
         Trace.Listeners.Add(myWriter);
 
         Console.CancelKeyPress += ((object? sender, ConsoleCancelEventArgs args) => CleanupResources());
+        UserDatabase.Instantiate();
 
         _listenerInstance = ListenerInstance.Instance;
         _listenerInstance.Start();

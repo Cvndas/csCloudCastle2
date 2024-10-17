@@ -286,31 +286,31 @@ internal class AuthenticationHelper
         Debug.Assert(usernamePasswordArray.Length == 2); // Since it passed format validation, this should work.
         string username = usernamePasswordArray[0];
         string password = usernamePasswordArray[1];
-        DatabaseFlags databaseResponseFlag = UserDatabase.TryToLogin(username, password);
+        DatabaseFlag databaseResponseFlag = UserDatabase.TryToLogin(username, password);
 
         // +++ Part 5: Handling the database response.
         switch (databaseResponseFlag) {
 
             // -------------- Success!! -------------
-            case DatabaseFlags.KEY_VALUE_MATCHES:
+            case DatabaseFlag.KEY_VALUE_MATCHES:
                 _authHelperState = ServerState.PASSING_CONN_INFO_TO_DASHBOARD;
                 SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.LOGIN_SUCCEEDED);
                 return;
 
 
-            case DatabaseFlags.INVALID_FLAG:
+            case DatabaseFlag.INVALID_FLAG:
                 Debug.Assert(false, "unfinished UserDatabase.TryToLogin()");
                 _authHelperState = ServerState.BREAKING_CONNECTION;
                 return;
-            case DatabaseFlags.DATABASE_ERROR:
+            case DatabaseFlag.DATABASE_ERROR:
                 SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.DATABASE_ERROR);
                 _authHelperState = ServerState.BREAKING_CONNECTION;
                 return;
-            case DatabaseFlags.KEY_DOESNT_EXIST:
+            case DatabaseFlag.KEY_DOESNT_EXIST:
                 SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.USERNAME_DOESNT_EXIST);
                 _helperData.LoginAttemptsMade += 1;
                 break;
-            case DatabaseFlags.VALUE_DOESNT_MATCH:
+            case DatabaseFlag.VALUE_DOESNT_MATCH:
                 SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.WRONG_PASSWORD);
                 _helperData.LoginAttemptsMade += 1;
                 break;
@@ -373,10 +373,10 @@ internal class AuthenticationHelper
         string[] payloadSplit = payload.Split(" ");
         string username = payloadSplit[0];
         string password = payloadSplit[1];
-        DatabaseFlags result = UserDatabase.TryToRegister(username, password);
+        DatabaseFlag result = UserDatabase.TryToRegister(username, password);
 
         // ----------- SUCCESS --------------- //
-        if (result == DatabaseFlags.KEY_VALUE_DEPOSITED) {
+        if (result == DatabaseFlag.KEY_VALUE_DEPOSITED) {
             _helperData.AccountsCreated += 1;
             SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.REGISTRATION_SUCCESSFUL);
             _authHelperState = ServerState.ASSIGNED_TO_CLIENT;
@@ -384,22 +384,22 @@ internal class AuthenticationHelper
         }
         // --------------------------------------- //
 
-        else if (result == DatabaseFlags.KEY_ALREADY_EXISTS) {
+        else if (result == DatabaseFlag.KEY_ALREADY_EXISTS) {
             SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.USERNAME_TAKEN);
             _helperData.RegistrationAttempts += 1;
         }
-        else if (result == DatabaseFlags.USERNAME_PASS_VALIDATION_ERROR) {
+        else if (result == DatabaseFlag.USERNAME_PASS_VALIDATION_ERROR) {
             Console.WriteLine(_consolePreamble + "programming error in ProcessRegistrationAttempt(): wrong user_pass format - bc");
             _authHelperState = ServerState.BREAKING_CONNECTION;
             return;
         }
-        else if (result == DatabaseFlags.DATABASE_ERROR) {
+        else if (result == DatabaseFlag.DATABASE_ERROR) {
             Console.WriteLine(_consolePreamble + "database error in ProcessRegistrationAttempt()");
             _authHelperState = ServerState.BREAKING_CONNECTION;
             return;
         }
         // --------------------------------------------------------------------------- //
-        Debug.Assert(result == DatabaseFlags.KEY_VALUE_DEPOSITED);
+        Debug.Assert(result == DatabaseFlag.KEY_VALUE_DEPOSITED);
     }
 
     private void TransferResourcesToDashboard()

@@ -7,7 +7,10 @@ internal class ListenerInstance
     private static ListenerInstance? _instance;
     public static ListenerInstance Instance {
         get {
-            _instance ??= new ListenerInstance();
+            if (_instance == null){
+                _instance = new ListenerInstance();
+                Console.WriteLine("Listener instantiated by thread " + Thread.CurrentThread.ManagedThreadId);
+            }
             return _instance;
         }
     }

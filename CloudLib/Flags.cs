@@ -119,7 +119,7 @@ public enum ServerFlag : byte
     // -------------- // 
 }
 
-public enum DatabaseFlags : byte
+public enum DatabaseFlag : byte
 {
     INVALID_FLAG, // 0, do not move
     INVALID_IGNORE, // 1, do not move
