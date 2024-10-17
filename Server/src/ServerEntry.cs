@@ -29,11 +29,14 @@ public class ServerEntry
             return;
         }
 
-        // Route the debug output into standard out.
+        // TODO during Dashboard: define a base class for modular server components, like chat, cloud, etc.
+        // to allow for standardized creation and destruction of those modules. 
+
+        // Route the debug output into ServerLog
         var myWriter = new TextWriterTraceListener(Console.Out);
         Trace.Listeners.Add(myWriter);
 
-        Console.CancelKeyPress += ((object? sender, ConsoleCancelEventArgs args) => CleanupResources());
+        Console.CancelKeyPress += (object? sender, ConsoleCancelEventArgs args) => CleanupResources();
         UserDatabase.Instantiate();
 
         _listenerInstance = ListenerInstance.Instance;

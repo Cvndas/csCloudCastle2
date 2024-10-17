@@ -105,8 +105,6 @@ internal class AuthenticationHelper
 
 
 
-
-
     // -------------- Private Methods ------- // 
     private void AuthenticationHelperJob()
     {
@@ -191,7 +189,6 @@ internal class AuthenticationHelper
                         ProcessLoginAttempt();
                         break;
                     case ServerState.BREAKING_CONNECTION:
-                        // TODO Before testing login process, before dashboard
                         _helperData.ConnectionResources?.Cleanup();
                         return;
                     case ServerState.PASSING_CONN_INFO_TO_DASHBOARD:
@@ -410,7 +407,7 @@ internal class AuthenticationHelper
 
     private void TransferResourcesToDashboard()
     {
-        // TODO after login
+        // TODO Before Dashboard 1
 
         //but this one line is necessary for asserts in Cleanup by the ListenerThread process.
         _helperData.ConnectionResources = null;
@@ -420,7 +417,7 @@ internal class AuthenticationHelper
     private void DPrintAuthStates()
     {
 #if PRINTING_AUTH_STATES
-        Console.WriteLine("STATE: " + _authHelperState);
+        Console.WriteLine(_consolePreamble + "--- STATE --- : " + _authHelperState);
 #endif
     }
 }

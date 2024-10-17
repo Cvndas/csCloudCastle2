@@ -41,13 +41,25 @@ public static class ServerConstants
 
     public const int MAX_FILENAME_LEN = sizeof(char) * 15;
 
+    // TODO Before Dashboard: Limit number of people who can connect to the server. Simplify the auth system with the listener.
+    public static readonly int MAX_CLIENTS_ON_SYSTEM = MAX_AUTHENTICATION_MANAGERS * USERS_PER_AUTHENTICATION_MANAGER;
 
-    public const int HELPERS_PER_AUTHENTICATION_MANAGER = 2;
     public const int MAX_AUTHENTICATION_MANAGERS = 2;
-    public const int MAX_USERS_IN_AUTHENTICATION_QUEUE = 2;
+    public const int HELPERS_PER_AUTHENTICATION_MANAGER = 2;
+
+    // TODO before dashboard: First find an authentication manager with free helpers, if none exist, 
+    // go to the first auth manager with < MAX_USERS_PER_AUTHENTICATION_MANAGER users, and wait there. 
+    public const int USERS_PER_AUTHENTICATION_MANAGER = 3;
 
     public const int AUTH_MANAGER_BASE_ID = 100;
     public const int AUTH_MANAGER_ID_INCREMENT = 100;
+
+    // User should never have to wait in queue for a dashboard manager. 
+    // Number of dashboard managers grows dynamically. Users are rejected from auth
+    // queue if MAX_CLIENTS_ON_SYSTEM has been reached.
+    public const int MAX_DASHBOARD_MANAGERS = 1000000;
+    public const int HELPERS_PER_DASHBOARD_MANAGER = 2;
+    public const int USERS_PER_DASHBOARD_MANAGER = HELPERS_PER_DASHBOARD_MANAGER;
 
 
 
@@ -67,5 +79,5 @@ public static class ServerConstants
     /// <summary>
     /// Used by the client to talk to the user
     /// </summary>
-    public const string  USER_FACING_SERVER_TIMEOUT_MSG = "Server timeout. Please try again another time.";
+    public const string USER_FACING_SERVER_TIMEOUT_MSG = "Server timeout. Please try again another time.";
 }

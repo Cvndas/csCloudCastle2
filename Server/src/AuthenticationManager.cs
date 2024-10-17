@@ -9,7 +9,7 @@ internal class AuthenticationManager
         CR_freeAuthHelpers = new(ServerConstants.HELPERS_PER_AUTHENTICATION_MANAGER);
         _freeAuthHelpersLock = new object();
 
-        CR_clientQueue = new Queue<ConnectionResources>(ServerConstants.MAX_USERS_IN_AUTHENTICATION_QUEUE);
+        CR_clientQueue = new Queue<ConnectionResources>(ServerConstants.USERS_PER_AUTHENTICATION_HELPER);
         _clientQueueLock = new object();
 
         _tokenSource = new CancellationTokenSource();
@@ -36,7 +36,7 @@ internal class AuthenticationManager
     {
         bool ret = false;
         lock (_clientQueueLock) {
-            if (CR_clientQueue.Count < ServerConstants.MAX_USERS_IN_AUTHENTICATION_QUEUE) {
+            if (CR_clientQueue.Count < ServerConstants.USERS_PER_AUTHENTICATION_HELPER) {
                 CR_clientQueue.Enqueue(resources);
                 Monitor.Pulse(_clientQueueLock);
                 ret = true;
@@ -109,8 +109,9 @@ internal class AuthenticationManager
     // -------------------------------------- // 
 
     // Threads: AuthenticationHelper
-    public void AddSelfToFreeHelpers(AuthenticationHelper helper){
-        lock (_freeAuthHelpersLock){
+    public void AddSelfToFreeHelpers(AuthenticationHelper helper)
+    {
+        lock (_freeAuthHelpersLock) {
             CR_freeAuthHelpers.Enqueue(helper);
             Monitor.Pulse(_freeAuthHelpersLock);
             Console.WriteLine(_consolePreamble! + "'s freeAuthHelpers queue has " + CR_freeAuthHelpers.Count + " helpers.");
