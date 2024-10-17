@@ -10,7 +10,7 @@ namespace Server.src;
 
 internal class AuthenticationHelper
 {
-    public AuthenticationHelper(int id, CancellationToken token)
+    public AuthenticationHelper(int id, CancellationToken token, AuthenticationManager manager)
     {
         // Note : It's quite arbitrary which data goes in here. Could use a refactor in the future.
         _helperData = new AuthenticationHelperData {
@@ -18,7 +18,8 @@ internal class AuthenticationHelper
             ConnectionResources = null,
             LoginAttemptsMade = 0,
             RegistrationAttempts = 0,
-            AccountsCreated = 0
+            AccountsCreated = 0,
+            Manager = manager
         };
 
         CR_hasWork = false;
@@ -45,8 +46,8 @@ internal class AuthenticationHelper
             _helperData.RegistrationAttempts = 0;
             _helperData.AccountsCreated = 0;
 
-            CR_hasWork = true; // This bool is probably completely unnecessary, except for the assert.
-
+            // This bool serves no purpose other than making the logic slightly easier to understand.
+            CR_hasWork = true;
             // Inform the client that he has been assigned
             SMail.SendFlag(resources.Stream!, ServerFlag.AUTHENTICATOR_HELPER_ASSIGNED);
 
@@ -77,6 +78,7 @@ internal class AuthenticationHelper
         internal int LoginAttemptsMade { get; set; }
         internal int AccountsCreated { get; set; }
         internal ConnectionResources? ConnectionResources { get; set; }
+        internal AuthenticationManager? Manager { get; set; }
     }
 
     // ---------- Private Variables -------- // 
@@ -109,44 +111,48 @@ internal class AuthenticationHelper
     private void AuthenticationHelperJob()
     {
         while (true) {
-            try {
-                lock (_hasWorkLock) {
+            lock (_hasWorkLock) {
+                try {
                     Debug.Assert(CR_hasWork == false);
-                    // Pulse 1: A client's resources have been added (unimplemented for now)
+                    // Pulse 1: A client's resources have been added, by AuthenticationManager
                     // Pulse 2: Cancellation has been requested
-                    Monitor.Wait(_hasWorkLock);
+                    if (!CR_hasWork) {
+                        Monitor.Wait(_hasWorkLock);
+                    }
                     Debug.Assert(CR_hasWork == true);
+                    if (_cancellationToken.IsCancellationRequested) {
+                        Console.WriteLine($"Helper: {_helperData.Id} has had his cancellation token invoked.");
+                        break;
+                    }
+
+                    _authHelperState = ServerState.ASSIGNED_TO_CLIENT;
+
+                    RunAuthenticationHelperStateMachine();
+
                 }
-                if (_cancellationToken.IsCancellationRequested) {
-                    Console.WriteLine($"Helper: {_helperData.Id} has had his cancellation token invoked.");
-                    break;
+                catch (IOException) {
+                    Console.WriteLine($"Client of {_helperData.Id} disconnected.");
+                    _helperData?.ConnectionResources?.Cleanup();
                 }
+                catch (ClientTimeoutException) {
+                    Console.WriteLine($"Client of {_helperData.Id} timed out. Terminating the connection.");
+                    _helperData?.ConnectionResources?.Cleanup();
+                }
+                catch (Exception e) {
+                    Console.WriteLine($"Unexpected exception in AuthenticatorHelperJob of {_helperData.Id}.");
+                    Console.WriteLine("Exception Type: " + e.GetType());
+                    Console.WriteLine("Message: " + e.Message);
+                    Console.WriteLine("Terminating the connection nonetheless.");
+                    _helperData?.ConnectionResources?.Cleanup();
+                }
+                finally {
+                    // Note: this code block will probably be reached while the client's resources are valid, and
+                    // passed into another part of the system.
+                    _helperData.Manager!.AddSelfToFreeHelpers(this);
+                    Console.WriteLine(_consolePreamble + "has broken the connection with the client, has added himself into the free queue.");
 
-                _authHelperState = ServerState.ASSIGNED_TO_CLIENT;
-
-                RunAuthenticationHelperStateMachine();
-
-            }
-            catch (IOException) {
-                Console.WriteLine($"Client of {_helperData.Id} disconnected.");
-                _helperData?.ConnectionResources?.Cleanup();
-            }
-            catch (ClientTimeoutException) {
-                Console.WriteLine($"Client of {_helperData.Id} timed out. Terminating the connection.");
-                _helperData?.ConnectionResources?.Cleanup();
-            }
-            catch (Exception e) {
-                Console.WriteLine($"Unexpected exception in AuthenticatorHelperJob of {_helperData.Id}.");
-                Console.WriteLine("Exception Type: " + e.GetType());
-                Console.WriteLine("Message: " + e.Message);
-                Console.WriteLine("Terminating the connection nonetheless.");
-                _helperData?.ConnectionResources?.Cleanup();
-            }
-            finally {
-                // Note: this code block will probably be reached while the client's resources are valid, and
-                // passed into another part of the system.
-                Console.WriteLine("Unimplemented the \"finally\" part of AuthenticatorHelperJob");
-                Debug.Assert(false);
+                    CR_hasWork = false;
+                }
             }
         }
 
@@ -185,9 +191,9 @@ internal class AuthenticationHelper
                         ProcessLoginAttempt();
                         break;
                     case ServerState.BREAKING_CONNECTION:
-                        // TODO Before login
-                        Debug.Assert(false);
-                        break;
+                        // TODO Before testing login process, before dashboard
+                        _helperData.ConnectionResources?.Cleanup();
+                        return;
                     case ServerState.PASSING_CONN_INFO_TO_DASHBOARD:
                         Debug.Assert(false);
                         // PassConnectionInfoToDashboard()

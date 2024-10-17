@@ -15,8 +15,10 @@ internal class AuthenticationManager
         _tokenSource = new CancellationTokenSource();
         _token = _tokenSource.Token;
 
+        _consolePreamble = $"AuthenticationManager {id}";
+
         for (int i = 0; i < ServerConstants.HELPERS_PER_AUTHENTICATION_MANAGER; i++) {
-            CR_freeAuthHelpers.Enqueue(new AuthenticationHelper(id + i, _token));
+            CR_freeAuthHelpers.Enqueue(new AuthenticationHelper(id + i + 1, _token, this));
         }
 
         _authenticationManagerThread = new Thread(() => AuthenticationManagerJob());
@@ -86,6 +88,7 @@ internal class AuthenticationManager
     private readonly CancellationToken _token;
     private Thread _authenticationManagerThread;
     private int _id;
+    private string _consolePreamble;
     // -------------------------------------- //
 
     // ----------- CRITICAL ----------------- // 
@@ -105,6 +108,15 @@ internal class AuthenticationManager
 
     // -------------------------------------- // 
 
+    // Threads: AuthenticationHelper
+    public void AddSelfToFreeHelpers(AuthenticationHelper helper){
+        lock (_freeAuthHelpersLock){
+            CR_freeAuthHelpers.Enqueue(helper);
+            Monitor.Pulse(_freeAuthHelpersLock);
+            Console.WriteLine(_consolePreamble! + "'s freeAuthHelpers queue has " + CR_freeAuthHelpers.Count + " helpers.");
+        }
+    }
+
     private void AuthenticationManagerJob()
     {
         while (true) {
@@ -116,10 +128,10 @@ internal class AuthenticationManager
                 else {
                     Monitor.Wait(_freeAuthHelpersLock);
                     // Woken up either because of cancellation token, or because there is a client
+                    // Pulsed by Listener thread (cancellation token) or by AuthenticationHelper
                     CR_freeAuthHelpers.TryDequeue(out helper);
                 }
             }
-            Console.WriteLine("A Helper is ready.");
 
             if (_token.IsCancellationRequested) {
                 break;
@@ -138,17 +150,12 @@ internal class AuthenticationManager
                     CR_clientQueue.TryDequeue(out clientResources);
                 }
             }
-            Console.WriteLine("A client has been chosen.");
 
             if (_token.IsCancellationRequested) {
                 break;
             }
             Debug.Assert(clientResources != null);
-
-            Console.WriteLine("About to assign client");
             helper.AssignClient(clientResources!);
-            Console.WriteLine("Assigned client");
-
         }
         Console.WriteLine($"AuthenticationManager: {_id} has exited the Job, and is ready to be joined.");
     }

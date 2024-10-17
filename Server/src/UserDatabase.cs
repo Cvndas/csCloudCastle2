@@ -87,7 +87,6 @@ internal static class UserDatabase
 
     public static DatabaseFlag TryToLogin(string username, string password)
     {
-        // TODO : Next
         DatabaseFlag retFlag = DatabaseFlag.DATABASE_ERROR;
         lock (_registered_users_json_lock) {
             try {
