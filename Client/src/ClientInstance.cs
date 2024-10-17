@@ -21,8 +21,8 @@ internal partial class ClientInstance
     {
         _personalData = new PersonalData {
             Username = "",
-            LoginAttempts = 0,
-            RegistrationAttempst = 0,
+            LoginAttemptsMade = 0,
+            RegistrationAttemptsMade = 0,
             AuthChoiceAttempts = 0,
             AccountsCreated = 0
         };
@@ -49,7 +49,7 @@ internal partial class ClientInstance
     private static ClientInstance? _instance;
     private PersonalData _personalData;
     private ConnectionResources? _connectionResources;
-    private ClientStates _clientState;
+    private ClientState _clientState;
 
     // -------------------------------------------------------- // 
 

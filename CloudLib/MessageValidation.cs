@@ -6,7 +6,7 @@ namespace CloudLib;
 public class MessageValidation
 {
     /// <summary>
-    /// 
+    /// Top to bottom, top has priority.
     /// </summary>
     /// <param name="usernamePassword"></param>
     /// <returns>

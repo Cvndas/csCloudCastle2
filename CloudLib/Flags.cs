@@ -1,5 +1,5 @@
 namespace CloudLib;
-public enum ClientFlags : byte
+public enum ClientFlag : byte
 {
     INVALID_FLAG, // 0, to mark illegal messages received.
     DO_NOT_USE_READ_CANCELED, // 1, do not move
@@ -48,7 +48,7 @@ public enum ClientFlags : byte
 
 // --------------------------------------------------- // 
 
-public enum ServerFlags : byte
+public enum ServerFlag : byte
 {
     INVALID_FLAG, // 0, to mark illegal messages.
     READ_CANCELED, // 1, do not move
@@ -121,12 +121,15 @@ public enum ServerFlags : byte
 
 public enum DatabaseFlags : byte
 {
-    INVALID_FLAG,
-    INVALID_IGNORE,
-    INVALID_IGNORE_TWO,
-    ACCOUNT_CREATED,
-    USERNAME_TAKEN,
+    INVALID_FLAG, // 0, do not move
+    INVALID_IGNORE, // 1, do not move
+    INVALID_IGNORE_TWO, // 2, do not move
+    KEY_VALUE_DEPOSITED,
     USERNAME_PASS_VALIDATION_ERROR,
     DATABASE_ERROR,
+    KEY_VALUE_MATCHES,
+    KEY_DOESNT_EXIST,
+    VALUE_DOESNT_MATCH,
+    KEY_ALREADY_EXISTS,
 
 }

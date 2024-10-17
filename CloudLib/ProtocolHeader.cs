@@ -14,14 +14,14 @@ public static class ProtocolHeader
     {
         return message[0];
     }
-    public static ClientFlags GetClientFlag(byte[] message)
+    public static ClientFlag GetClientFlag(byte[] message)
     {
-        return (ClientFlags)message[0];
+        return (ClientFlag)message[0];
     }
 
-    public static ServerFlags GetServerFlag(byte[] message)
+    public static ServerFlag GetServerFlag(byte[] message)
     {
-        return (ServerFlags)message[0];
+        return (ServerFlag)message[0];
     }
 
     public static int GetPayloadLen(byte[] message)

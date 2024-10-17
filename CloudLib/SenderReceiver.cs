@@ -44,10 +44,10 @@ public static class SenderReceiver
 
             Debug.Assert(payloadLen >= 0);
             if (payloadLen < 0) {
-                return ((byte)ServerFlags.INVALID_FLAG, Array.Empty<byte>());
+                return ((byte)ServerFlag.INVALID_FLAG, Array.Empty<byte>());
             }
 
-            if (payloadLen == 0){
+            if (payloadLen == 0) {
                 return (flag, Array.Empty<byte>());
             }
 
@@ -61,7 +61,7 @@ public static class SenderReceiver
         }
 
         catch (IOException) {
-            return ((byte)ServerFlags.DISCONNECTION, Array.Empty<byte>());
+            return ((byte)ServerFlag.DISCONNECTION, Array.Empty<byte>());
         }
     }
 
@@ -85,7 +85,7 @@ public static class SenderReceiver
             do {
                 headerBytesReadTask = stream.ReadAsync(headerBuffer, 0, ProtocolConstants.HEADER_LEN, token);
                 iterationBytesRead = await headerBytesReadTask;
-                if (iterationBytesRead == 0){
+                if (iterationBytesRead == 0) {
                     throw new IOException("DISCONNECTION in ReceiveMessageCancellable");
                 }
                 headerBytesRead += iterationBytesRead;
@@ -95,9 +95,9 @@ public static class SenderReceiver
             int payloadLen = ProtocolHeader.GetPayloadLen(headerBuffer);
 
             if (payloadLen < 0) {
-                return ((byte)ServerFlags.INVALID_FLAG, Array.Empty<byte>());
+                return ((byte)ServerFlag.INVALID_FLAG, Array.Empty<byte>());
             }
-            else if (payloadLen == 0){
+            else if (payloadLen == 0) {
                 return (flag, Array.Empty<byte>());
             }
 
@@ -115,10 +115,10 @@ public static class SenderReceiver
             while (stream.DataAvailable) {
                 ReceiveMessage(stream);
             }
-            return ((byte)ServerFlags.READ_CANCELED, Array.Empty<byte>());
+            return ((byte)ServerFlag.READ_CANCELED, Array.Empty<byte>());
         }
         catch (IOException) {
-            return ((byte)ServerFlags.DISCONNECTION, Array.Empty<byte>());
+            return ((byte)ServerFlag.DISCONNECTION, Array.Empty<byte>());
         }
     }
 }

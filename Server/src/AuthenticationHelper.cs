@@ -6,7 +6,7 @@ using CloudLib;
 
 namespace Server.src;
 
-
+// TODO Before Dashboard: Thoroughly test the authentication system. 
 
 internal class AuthenticationHelper
 {
@@ -16,7 +16,7 @@ internal class AuthenticationHelper
         _helperData = new AuthenticationHelperData {
             Id = id,
             ConnectionResources = null,
-            LoginAttempts = 0,
+            LoginAttemptsMade = 0,
             RegistrationAttempts = 0,
             AccountsCreated = 0
         };
@@ -25,7 +25,7 @@ internal class AuthenticationHelper
         _hasWorkLock = new object();
         _cancellationToken = token;
 
-        _authHelperState = ServerStates.NOT_CONNECTED;
+        _authHelperState = ServerState.NOT_CONNECTED;
 
         _consolePreamble = $"AuthHelper {_helperData.Id}: ";
 
@@ -41,14 +41,14 @@ internal class AuthenticationHelper
             Debug.Assert(CR_hasWork == false);
 
             _helperData.ConnectionResources = resources;
-            _helperData.LoginAttempts = 0;
+            _helperData.LoginAttemptsMade = 0;
             _helperData.RegistrationAttempts = 0;
             _helperData.AccountsCreated = 0;
 
             CR_hasWork = true; // This bool is probably completely unnecessary, except for the assert.
 
             // Inform the client that he has been assigned
-            SMail.SendFlag(resources.Stream!, ServerFlags.AUTHENTICATOR_HELPER_ASSIGNED);
+            SMail.SendFlag(resources.Stream!, ServerFlag.AUTHENTICATOR_HELPER_ASSIGNED);
 
             Monitor.Pulse(_hasWorkLock);
         }
@@ -74,14 +74,14 @@ internal class AuthenticationHelper
         // ConnectionResources may be transferred around.
         internal int Id { get; init; }
         internal int RegistrationAttempts { get; set; }
-        internal int LoginAttempts { get; set; }
+        internal int LoginAttemptsMade { get; set; }
         internal int AccountsCreated { get; set; }
         internal ConnectionResources? ConnectionResources { get; set; }
     }
 
     // ---------- Private Variables -------- // 
     private readonly AuthenticationHelperData _helperData;
-    private ServerStates _authHelperState;
+    private ServerState _authHelperState;
     private CancellationToken _cancellationToken;
     private Thread _authenticationHelperThread;
     private string _consolePreamble = "";
@@ -122,7 +122,7 @@ internal class AuthenticationHelper
                     break;
                 }
 
-                _authHelperState = ServerStates.ASSIGNED_TO_CLIENT;
+                _authHelperState = ServerState.ASSIGNED_TO_CLIENT;
 
                 RunAuthenticationHelperStateMachine();
 
@@ -166,88 +166,197 @@ internal class AuthenticationHelper
     private void RunAuthenticationHelperStateMachine()
     {
         // Being assigned takes place in AuthenticationHelperjob
-        Debug.Assert(_authHelperState == ServerStates.ASSIGNED_TO_CLIENT);
+        Debug.Assert(_authHelperState == ServerState.ASSIGNED_TO_CLIENT);
         CancellationTokenSource authProcessTimerSource =
             new CancellationTokenSource(ServerConstants.AUTH_PROCESS_TIMEOUT_SECONDS * 1000);
         CancellationToken authProcessTimerToken = authProcessTimerSource.Token;
 
         while (true) {
-            DPrintAuthStates();
-            switch (_authHelperState) {
-                case ServerStates.ASSIGNED_TO_CLIENT:
-                    ProcessAuthenticationChoice(authProcessTimerToken);
-                    break;
-                case ServerStates.REGISTRATION_REQUEST_RECEIVED:
-                    ProcessRegistrationAttempt();
-                    break;
-                case ServerStates.BREAKING_CONNECTION:
-                    // TODO Before login
-                    Debug.Assert(false);
-                    break;
-                case ServerStates.PASSED_CONN_INFO_TO_DASHBOARD:
-                    Debug.Assert(false);
-                    break;
-                default:
-                    Console.WriteLine("Invalid state reached.");
-                    return;
+            try {
+                DPrintAuthStates();
+                switch (_authHelperState) {
+                    case ServerState.ASSIGNED_TO_CLIENT:
+                        ProcessAuthenticationChoice(authProcessTimerToken);
+                        break;
+                    case ServerState.REGISTRATION_REQUEST_RECEIVED:
+                        ProcessRegistrationAttempt();
+                        break;
+                    case ServerState.LOGIN_REQUEST_RECEIVED:
+                        ProcessLoginAttempt();
+                        break;
+                    case ServerState.BREAKING_CONNECTION:
+                        // TODO Before login
+                        Debug.Assert(false);
+                        break;
+                    case ServerState.PASSING_CONN_INFO_TO_DASHBOARD:
+                        Debug.Assert(false);
+                        // PassConnectionInfoToDashboard()
+                        break;
+                    default:
+                        Console.WriteLine("Invalid state reached.");
+                        return;
+                }
+
+            }
+            catch (Exception e) {
+                Console.WriteLine(_consolePreamble + "unexpected exception caught in State Machine loop: " + e.Message);
+                Console.WriteLine("Closing connection to the client.");
+                _authHelperState = ServerState.BREAKING_CONNECTION;
             }
         }
     }
 
     private void ProcessAuthenticationChoice(CancellationToken authProcessTimerToken)
     {
-        (ClientFlags flag, _) = SMail.ReceiveMessageCancellable(_helperData.ConnectionResources!.Stream!, authProcessTimerToken);
+        (ClientFlag flag, _) = SMail.ReceiveMessageCancellable(_helperData.ConnectionResources!.Stream!, authProcessTimerToken);
 
         if (SMail.ClientDisconnected(flag)) {
             Console.WriteLine(_consolePreamble + "Client disconnected in ProcessAuthenticationChoice() - bc");
-            _authHelperState = ServerStates.BREAKING_CONNECTION;
+            _authHelperState = ServerState.BREAKING_CONNECTION;
         }
-        else if (SMail.ReadWasCanceled(flag)) {
+        else if (SMail.ReadWasCancelled(flag)) {
             Console.WriteLine(_consolePreamble + "Client timeout in ProcessAuthenticationChoice() - bc");
-            _authHelperState = ServerStates.BREAKING_CONNECTION;
+            _authHelperState = ServerState.BREAKING_CONNECTION;
         }
 
-        else if (flag == ClientFlags.LOGIN_INIT) {
-            _authHelperState = ServerStates.LOGIN_REQUEST_RECEIVED;
+        else if (flag == ClientFlag.LOGIN_INIT) {
+            _authHelperState = ServerState.LOGIN_REQUEST_RECEIVED;
         }
-        else if (flag == ClientFlags.REGISTRATION_INIT) {
-            _authHelperState = ServerStates.REGISTRATION_REQUEST_RECEIVED;
+        else if (flag == ClientFlag.REGISTRATION_INIT) {
+            _authHelperState = ServerState.REGISTRATION_REQUEST_RECEIVED;
         }
 
         else {
             Console.WriteLine(_consolePreamble + "Received invalid flag in ProcessAuthenticationChoice: " + flag + " - bc");
-            _authHelperState = ServerStates.BREAKING_CONNECTION;
+            _authHelperState = ServerState.BREAKING_CONNECTION;
         }
     }
 
+    private void ProcessLoginAttempt()
+    {
+        // User must have sent the response before this timer runs out.
+        CancellationTokenSource loginTimerSource =
+            new CancellationTokenSource(ServerConstants.LOGIN_TIMEOUT_SECONDS * 1000);
+        CancellationToken loginTimer = loginTimerSource.Token;
+
+        // The unmodified client will send no Login Request requests if it has reached the max.
+        if (_helperData.LoginAttemptsMade >= ServerConstants.MAX_LOGIN_ATTEMPTS) {
+            // therefore, if this code is triggered, the user is hacking
+            _authHelperState = ServerState.BREAKING_CONNECTION;
+            return;
+        }
+
+        // +++ Part 1: Reading user input.
+        (ClientFlag receivedFlag, string receivedPayload) =
+            SMail.ReceiveStringCancellable(_helperData.ConnectionResources!.Stream!, loginTimer);
+
+        // +++ Part 2: Checking for errors in the receivedFlag
+        if (SMail.ClientDisconnected(receivedFlag)) {
+            Console.WriteLine(_consolePreamble + "client disconnected in ProcessLoginAttempt()");
+            _authHelperState = ServerState.BREAKING_CONNECTION;
+            return;
+        }
+        else if (SMail.ReadWasCancelled(receivedFlag)) {
+            Console.WriteLine(_consolePreamble + "client was too slow to respond in ProcessLoginAttempt().");
+            _authHelperState = ServerState.BREAKING_CONNECTION;
+            return;
+        }
+        else if (receivedFlag != ClientFlag.LOGIN_USERNAME_PASSWORD) {
+            Console.WriteLine(_consolePreamble + "received invalid flag from user. in ProcessLoginAttempt()");
+            _authHelperState = ServerState.BREAKING_CONNECTION;
+            return;
+        }
+
+        // +++ Part 3: Validating the payload.
+        MessageValidationResult evalResult = MessageValidation.ValidateUsernamePassword(receivedPayload);
+
+        if (evalResult == MessageValidationResult.WRONG_MESSAGE_FORMAT) {
+            Console.WriteLine("User didn't validate message in ProcessLoginAttempt()");
+            _authHelperState = ServerState.BREAKING_CONNECTION;
+            return;
+        }
+
+        // Password and Username validation should not apply retroactively to stored passwords, as the 
+        // validation system may change over time. Even if the validation doesn't match current rules,
+        // since those rules only apply to modern registration, it doesn't apply here.
+
+
+        // +++ Part 4: Checking if the login info is correct.
+        string[] usernamePasswordArray = receivedPayload.Split(" ");
+        Debug.Assert(usernamePasswordArray.Length == 2); // Since it passed format validation, this should work.
+        string username = usernamePasswordArray[0];
+        string password = usernamePasswordArray[1];
+        DatabaseFlags databaseResponseFlag = UserDatabase.TryToLogin(username, password);
+
+        // +++ Part 5: Handling the database response.
+        switch (databaseResponseFlag) {
+
+            // -------------- Success!! -------------
+            case DatabaseFlags.KEY_VALUE_MATCHES:
+                _authHelperState = ServerState.PASSING_CONN_INFO_TO_DASHBOARD;
+                SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.LOGIN_SUCCEEDED);
+                return;
+
+
+            case DatabaseFlags.INVALID_FLAG:
+                Debug.Assert(false, "unfinished UserDatabase.TryToLogin()");
+                _authHelperState = ServerState.BREAKING_CONNECTION;
+                return;
+            case DatabaseFlags.DATABASE_ERROR:
+                SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.DATABASE_ERROR);
+                _authHelperState = ServerState.BREAKING_CONNECTION;
+                return;
+            case DatabaseFlags.KEY_DOESNT_EXIST:
+                SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.USERNAME_DOESNT_EXIST);
+                _helperData.LoginAttemptsMade += 1;
+                break;
+            case DatabaseFlags.VALUE_DOESNT_MATCH:
+                SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.WRONG_PASSWORD);
+                _helperData.LoginAttemptsMade += 1;
+                break;
+            default:
+                Console.WriteLine(_consolePreamble + "unhandled case in part 5 of ProcessLogin()");
+                _authHelperState = ServerState.BREAKING_CONNECTION;
+                return;
+        }
+        Console.WriteLine(_consolePreamble + "user failed to log in.");
+    }
+
+
     private void ProcessRegistrationAttempt()
     {
+        // User must have sent the response before this timer runs out.
         CancellationTokenSource registrationTimerSource =
             new CancellationTokenSource(ServerConstants.REGISTER_TIMEOUT_SECONDS * 1000);
         CancellationToken registrationTimer = registrationTimerSource.Token;
 
+        if (_helperData.RegistrationAttempts >= ServerConstants.MAX_REGISTRATION_ATTEMPTS) {
+            Console.WriteLine(_consolePreamble + "user, who is hacking, made too many registration attempts in ProcessRegistrationAttempt() - bc");
+            _authHelperState = ServerState.BREAKING_CONNECTION;
+        }
+
         // The unmodified client will send no Registration requests if it has reached the max.
         if (_helperData.AccountsCreated > ServerConstants.MAX_ACCOUNTS_PER_SESSION) {
             // therefore, if this code is triggered, the user is hacking
-            _authHelperState = ServerStates.BREAKING_CONNECTION;
+            _authHelperState = ServerState.BREAKING_CONNECTION;
             return;
         }
         // --------------------------- READING ----------------------------- //
-        (ClientFlags flag, string payload) =
+        (ClientFlag flag, string payload) =
             SMail.ReceiveStringCancellable(_helperData.ConnectionResources!.Stream!, registrationTimer);
         if (SMail.ClientDisconnected(flag)) {
-            _authHelperState = ServerStates.BREAKING_CONNECTION;
+            _authHelperState = ServerState.BREAKING_CONNECTION;
             Console.WriteLine(_consolePreamble + "client disconnected in ProcessRegistrationAttempt() - bc");
             return;
         }
-        else if (SMail.ReadWasCanceled(flag)) {
-            _authHelperState = ServerStates.BREAKING_CONNECTION;
+        else if (SMail.ReadWasCancelled(flag)) {
+            _authHelperState = ServerState.BREAKING_CONNECTION;
             Console.WriteLine(_consolePreamble + "timeout in ProcessRegistrationAttempt() - bc");
             return;
         }
-        else if (flag != ClientFlags.REGISTRATION_USERNAME_PASSWORD){
+        else if (flag != ClientFlag.REGISTRATION_USERNAME_PASSWORD) {
             Console.WriteLine(_consolePreamble + "received invalid flag from user in ProcessRegistrationAttempt");
-            _authHelperState = ServerStates.BREAKING_CONNECTION;
+            _authHelperState = ServerState.BREAKING_CONNECTION;
             return;
         }
         // ----------------------------------------------------------------- //
@@ -257,7 +366,7 @@ internal class AuthenticationHelper
         // If it's incorrect, then the user modified the client.
         if (!(MessageValidation.ValidateUsernamePassword(payload) == MessageValidationResult.OK)) {
             Console.WriteLine(_consolePreamble + "user modified client, sent invalid username password in ProcessRegistrationAttempt() - bc");
-            _authHelperState = ServerStates.BREAKING_CONNECTION;
+            _authHelperState = ServerState.BREAKING_CONNECTION;
             return;
         }
 
@@ -265,34 +374,32 @@ internal class AuthenticationHelper
         string username = payloadSplit[0];
         string password = payloadSplit[1];
         DatabaseFlags result = UserDatabase.TryToRegister(username, password);
-        if (result == DatabaseFlags.ACCOUNT_CREATED) {
+
+        // ----------- SUCCESS --------------- //
+        if (result == DatabaseFlags.KEY_VALUE_DEPOSITED) {
             _helperData.AccountsCreated += 1;
-            SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlags.REGISTRATION_SUCCESSFUL);
-            _authHelperState = ServerStates.ASSIGNED_TO_CLIENT;
+            SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.REGISTRATION_SUCCESSFUL);
+            _authHelperState = ServerState.ASSIGNED_TO_CLIENT;
             return;
         }
-        else if (result == DatabaseFlags.USERNAME_TAKEN) {
-            SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlags.USERNAME_TAKEN);
+        // --------------------------------------- //
+
+        else if (result == DatabaseFlags.KEY_ALREADY_EXISTS) {
+            SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.USERNAME_TAKEN);
+            _helperData.RegistrationAttempts += 1;
         }
         else if (result == DatabaseFlags.USERNAME_PASS_VALIDATION_ERROR) {
             Console.WriteLine(_consolePreamble + "programming error in ProcessRegistrationAttempt(): wrong user_pass format - bc");
-            _authHelperState = ServerStates.BREAKING_CONNECTION;
+            _authHelperState = ServerState.BREAKING_CONNECTION;
             return;
         }
         else if (result == DatabaseFlags.DATABASE_ERROR) {
-            Console.WriteLine(_consolePreamble+"database error in ProcessRegistrationAttempt()");
-            _authHelperState = ServerStates.BREAKING_CONNECTION;
+            Console.WriteLine(_consolePreamble + "database error in ProcessRegistrationAttempt()");
+            _authHelperState = ServerState.BREAKING_CONNECTION;
             return;
         }
         // --------------------------------------------------------------------------- //
-        Debug.Assert(result == DatabaseFlags.USERNAME_TAKEN);
-
-        // TODO : Assert that this is always called if no disconnection AND registration was unsuccessful
-        _helperData.RegistrationAttempts += 1;
-        if (_helperData.RegistrationAttempts >= ServerConstants.MAX_REGISTRATION_ATTEMPTS) {
-            Console.WriteLine(_consolePreamble + "user made too many registration attempts in ProcessRegistrationAttempt() - bc");
-            _authHelperState = ServerStates.BREAKING_CONNECTION;
-        }
+        Debug.Assert(result == DatabaseFlags.KEY_VALUE_DEPOSITED);
     }
 
     private void TransferResourcesToDashboard()
@@ -307,7 +414,7 @@ internal class AuthenticationHelper
     private void DPrintAuthStates()
     {
 #if PRINTING_AUTH_STATES
-        Console.WriteLine(_authHelperState);
+        Console.WriteLine("STATE: " + _authHelperState);
 #endif
     }
 }

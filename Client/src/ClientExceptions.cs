@@ -22,6 +22,10 @@ class ExitingProgramException : Exception
 {
     // The timeout depends on the process. 
     // Authentication timeout is different than other timeouts, for example.
+    /// <summary>
+    /// Throwing this exception should cascade down into the program terminating gracefully.
+    /// </summary>
+    /// <param name="message"></param>
     public ExitingProgramException(string message) : base(message)
     {
 

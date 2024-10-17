@@ -56,4 +56,16 @@ public static class ServerConstants
     public static readonly int REGISTER_TIMEOUT_SECONDS = 15 * TIMEOUT_MULTIPLIER;
     public static readonly int LOGIN_TIMEOUT_SECONDS = 15 * TIMEOUT_MULTIPLIER;
     public static readonly int AUTH_PROCESS_TIMEOUT_SECONDS = (REGISTER_TIMEOUT_SECONDS + LOGIN_TIMEOUT_SECONDS + 20) * TIMEOUT_MULTIPLIER;
+    public static readonly int REGISTRATION_RESPONSE_TIMEOUT_SECONDS = 3 * TIMEOUT_MULTIPLIER;
+    public static readonly int LOGIN_RESPONSE_TIMEOUT_SECONDS = 3 * TIMEOUT_MULTIPLIER;
+
+    /// <summary>
+    /// Used by the client to talk to the user
+    /// </summary>
+    public const string USER_FACING_DISCONNECTION_MSG = "Lost connection to the server.";
+
+    /// <summary>
+    /// Used by the client to talk to the user
+    /// </summary>
+    public const string  USER_FACING_SERVER_TIMEOUT_MSG = "Server timeout. Please try again another time.";
 }

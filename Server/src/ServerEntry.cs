@@ -29,6 +29,10 @@ public class ServerEntry
             return;
         }
 
+        // Route the debug output into standard out.
+        var myWriter = new TextWriterTraceListener(Console.Out);
+        Trace.Listeners.Add(myWriter);
+
         Console.CancelKeyPress += ((object? sender, ConsoleCancelEventArgs args) => CleanupResources());
 
         _listenerInstance = ListenerInstance.Instance;

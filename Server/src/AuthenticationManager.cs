@@ -133,7 +133,6 @@ internal class AuthenticationManager
                     clientResources = CR_clientQueue.Dequeue();
                 }
                 else {
-                    // TODO : Missing a pulse.
                     Monitor.Wait(_clientQueueLock);
                     // Woken up either because of cancellation token, or because there is a client
                     CR_clientQueue.TryDequeue(out clientResources);
