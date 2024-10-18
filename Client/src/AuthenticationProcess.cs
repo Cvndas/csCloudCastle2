@@ -65,7 +65,7 @@ internal partial class ClientInstance
         TcpClient tcpClient = new TcpClient();
         tcpClient.Connect(ipEndPoint);
         NetworkStream stream = tcpClient.GetStream();
-        _connectionResources = new ConnectionResources() { TcpClient = tcpClient, Stream = stream };
+        _connectionResources = new (tcpClient, stream, 1);
 
         _clientState = ClientState.CONNECTED;
     }
@@ -78,7 +78,7 @@ internal partial class ClientInstance
 
         while (true) {
             (ServerFlag? serverFlag, byte[] payload) =
-                CMail.ReceiveMessageCancellable(_connectionResources!.Stream!, token);
+                CMail.ReceiveMessageCancellable(_connectionResources!.stream!, token);
 
 
             // --------- SUCCESS CASE --------------- //
@@ -128,7 +128,7 @@ internal partial class ClientInstance
                 throw new ExitingProgramException("Failed to receive input in ReceiveAuthChoice");
             }
             if (userResponse == "l") {
-                CMail.SendFlag(_connectionResources!.Stream!, ClientFlag.LOGIN_INIT);
+                CMail.SendFlag(_connectionResources!.stream!, ClientFlag.LOGIN_INIT);
                 _clientState = ClientState.LOGIN_CHOSEN;
                 return;
             }
@@ -138,7 +138,7 @@ internal partial class ClientInstance
                     _clientState = ClientState.ASSIGNED;
                     return;
                 }
-                CMail.SendFlag(_connectionResources!.Stream!, ClientFlag.REGISTRATION_INIT);
+                CMail.SendFlag(_connectionResources!.stream!, ClientFlag.REGISTRATION_INIT);
                 _clientState = ClientState.REGISTRATION_CHOSEN;
                 return;
             }
@@ -178,13 +178,13 @@ internal partial class ClientInstance
                 break;
         }
         // +++ Part 2: Send it to the server.
-        CMail.SendString(ClientFlag.LOGIN_USERNAME_PASSWORD, _connectionResources!.Stream!, userCreds);
+        CMail.SendString(ClientFlag.LOGIN_USERNAME_PASSWORD, _connectionResources!.stream!, userCreds);
 
         // +++ Part 3: Receive server's response
         CancellationTokenSource loginTimeoutSource =
             new CancellationTokenSource(ServerConstants.LOGIN_RESPONSE_TIMEOUT_SECONDS * 1000);
         CancellationToken loginTimeout = loginTimeoutSource.Token;
-        ServerFlag receivedFlag = CMail.ReceiveFlagCancellable(_connectionResources!.Stream!, loginTimeout);
+        ServerFlag receivedFlag = CMail.ReceiveFlagCancellable(_connectionResources!.stream!, loginTimeout);
 
         // +++ Part 4: Handle the server's response
         switch (receivedFlag) {
@@ -256,14 +256,14 @@ internal partial class ClientInstance
         }
 
         // +++ Part 2: Sending to the server
-        CMail.SendString(ClientFlag.REGISTRATION_USERNAME_PASSWORD, _connectionResources!.Stream!, userCreds);
+        CMail.SendString(ClientFlag.REGISTRATION_USERNAME_PASSWORD, _connectionResources!.stream!, userCreds);
 
         // +++ Part 3: Receiving and processing the server's response
         CancellationTokenSource registrationResponseTimeoutSource =
             new CancellationTokenSource(ServerConstants.REGISTRATION_RESPONSE_TIMEOUT_SECONDS * 1000);
         CancellationToken registrationResponseTimeout = registrationResponseTimeoutSource.Token;
         ServerFlag serverResponseFlag =
-            CMail.ReceiveFlagCancellable(_connectionResources!.Stream!, registrationResponseTimeout);
+            CMail.ReceiveFlagCancellable(_connectionResources!.stream!, registrationResponseTimeout);
 
         // ------------------------------- SUCCESS -------------------------------------------- // 
         if (serverResponseFlag == ServerFlag.REGISTRATION_SUCCESSFUL) {

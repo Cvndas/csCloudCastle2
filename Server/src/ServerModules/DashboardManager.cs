@@ -2,13 +2,16 @@ using Server.src;
 
 namespace Server.src.ServerModules;
 
-internal class DashboardManager : ManagementModule<DashboardHelper>
+internal class DashboardManager : ManagerModule<DashboardHelper>
 {
-    public DashboardManager()
+    public DashboardManager(Region region, int id) : base(id)
     {
-        HelperList = new List<DashboardHelper>(Capacity);
+        Region = region;
     }
 
-    override protected List<DashboardHelper> HelperList { get; init; }
-    override protected int Capacity { get; } = 2;
+    override protected int Capacity { get; init; } = 2;
+    private int capa = 2;
+
+    public Region Region { get; init;}
+    private readonly Region _region;
 }

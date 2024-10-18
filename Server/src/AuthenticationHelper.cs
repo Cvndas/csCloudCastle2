@@ -49,7 +49,7 @@ internal class AuthenticationHelper
             // This bool serves no purpose other than making the logic slightly easier to understand.
             CR_hasWork = true;
             // Inform the client that he has been assigned
-            SMail.SendFlag(resources.Stream!, ServerFlag.AUTHENTICATOR_HELPER_ASSIGNED);
+            SMail.SendFlag(resources.stream!, ServerFlag.AUTHENTICATOR_HELPER_ASSIGNED);
 
             Monitor.Pulse(_hasWorkLock);
         }
@@ -64,8 +64,8 @@ internal class AuthenticationHelper
         lock (_hasWorkLock) {
             Monitor.Pulse(_hasWorkLock);
         }
-        Debug.Assert(_helperData!.ConnectionResources!.Stream == null);
-        Debug.Assert(_helperData!.ConnectionResources!.TcpClient == null);
+        Debug.Assert(_helperData!.ConnectionResources!.stream == null);
+        Debug.Assert(_helperData!.ConnectionResources!.tcpClient == null);
         JoinAuthHelperThread();
     }
 
@@ -211,7 +211,7 @@ internal class AuthenticationHelper
 
     private void ProcessAuthenticationChoice(CancellationToken authProcessTimerToken)
     {
-        (ClientFlag flag, _) = SMail.ReceiveMessageCancellable(_helperData.ConnectionResources!.Stream!, authProcessTimerToken);
+        (ClientFlag flag, _) = SMail.ReceiveMessageCancellable(_helperData.ConnectionResources!.stream!, authProcessTimerToken);
 
         if (SMail.ClientDisconnected(flag)) {
             Console.WriteLine(_consolePreamble + "Client disconnected in ProcessAuthenticationChoice() - bc");
@@ -251,7 +251,7 @@ internal class AuthenticationHelper
 
         // +++ Part 1: Reading user input.
         (ClientFlag receivedFlag, string receivedPayload) =
-            SMail.ReceiveStringCancellable(_helperData.ConnectionResources!.Stream!, loginTimer);
+            SMail.ReceiveStringCancellable(_helperData.ConnectionResources!.stream!, loginTimer);
 
         // +++ Part 2: Checking for errors in the receivedFlag
         if (SMail.ClientDisconnected(receivedFlag)) {
@@ -297,7 +297,7 @@ internal class AuthenticationHelper
             // -------------- Success!! -------------
             case DatabaseFlag.KEY_VALUE_MATCHES:
                 _authHelperState = ServerState.PASSING_CONN_INFO_TO_DASHBOARD;
-                SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.LOGIN_SUCCEEDED);
+                SMail.SendFlag(_helperData.ConnectionResources.stream!, ServerFlag.LOGIN_SUCCEEDED);
                 return;
 
 
@@ -306,15 +306,15 @@ internal class AuthenticationHelper
                 _authHelperState = ServerState.BREAKING_CONNECTION;
                 return;
             case DatabaseFlag.DATABASE_ERROR:
-                SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.DATABASE_ERROR);
+                SMail.SendFlag(_helperData.ConnectionResources.stream!, ServerFlag.DATABASE_ERROR);
                 _authHelperState = ServerState.BREAKING_CONNECTION;
                 return;
             case DatabaseFlag.KEY_DOESNT_EXIST:
-                SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.USERNAME_DOESNT_EXIST);
+                SMail.SendFlag(_helperData.ConnectionResources.stream!, ServerFlag.USERNAME_DOESNT_EXIST);
                 _helperData.LoginAttemptsMade += 1;
                 break;
             case DatabaseFlag.VALUE_DOESNT_MATCH:
-                SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.WRONG_PASSWORD);
+                SMail.SendFlag(_helperData.ConnectionResources.stream!, ServerFlag.WRONG_PASSWORD);
                 _helperData.LoginAttemptsMade += 1;
                 break;
             default:
@@ -346,7 +346,7 @@ internal class AuthenticationHelper
         }
         // --------------------------- READING ----------------------------- //
         (ClientFlag flag, string payload) =
-            SMail.ReceiveStringCancellable(_helperData.ConnectionResources!.Stream!, registrationTimer);
+            SMail.ReceiveStringCancellable(_helperData.ConnectionResources!.stream!, registrationTimer);
         if (SMail.ClientDisconnected(flag)) {
             _authHelperState = ServerState.BREAKING_CONNECTION;
             Console.WriteLine(_consolePreamble + "client disconnected in ProcessRegistrationAttempt() - bc");
@@ -381,14 +381,14 @@ internal class AuthenticationHelper
         // ----------- SUCCESS --------------- //
         if (result == DatabaseFlag.KEY_VALUE_DEPOSITED) {
             _helperData.AccountsCreated += 1;
-            SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.REGISTRATION_SUCCESSFUL);
+            SMail.SendFlag(_helperData.ConnectionResources.stream!, ServerFlag.REGISTRATION_SUCCESSFUL);
             _authHelperState = ServerState.ASSIGNED_TO_CLIENT;
             return;
         }
         // --------------------------------------- //
 
         else if (result == DatabaseFlag.KEY_ALREADY_EXISTS) {
-            SMail.SendFlag(_helperData.ConnectionResources.Stream!, ServerFlag.USERNAME_TAKEN);
+            SMail.SendFlag(_helperData.ConnectionResources.stream!, ServerFlag.USERNAME_TAKEN);
             _helperData.RegistrationAttempts += 1;
         }
         else if (result == DatabaseFlag.USERNAME_PASS_VALIDATION_ERROR) {

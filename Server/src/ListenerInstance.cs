@@ -7,7 +7,7 @@ internal class ListenerInstance
     private static ListenerInstance? _instance;
     public static ListenerInstance Instance {
         get {
-            if (_instance == null){
+            if (_instance == null) {
                 _instance = new ListenerInstance();
                 Console.WriteLine("Listener instantiated by thread " + Thread.CurrentThread.ManagedThreadId);
             }
@@ -25,6 +25,7 @@ internal class ListenerInstance
         _tcpListener = new(ServerConstants.SERVER_IP, ServerConstants.SERVER_PORT);
         _authenticationManagers = new List<AuthenticationManager>();
         _idToGiveToAuthManager = ServerConstants.AUTH_MANAGER_BASE_ID;
+        _idToGiveToUser = ServerConstants.USER_BASE_ID;
     }
 
     private readonly TcpListener _tcpListener;
@@ -44,10 +45,8 @@ internal class ListenerInstance
             TcpClient newTcpClient = _tcpListener.AcceptTcpClient();
             NetworkStream newClientStream = newTcpClient.GetStream();
 
-            ConnectionResources newClientResources = new ConnectionResources {
-                TcpClient = newTcpClient,
-                Stream = newClientStream
-            };
+            _idToGiveToUser += 1;
+            ConnectionResources newClientResources = new (newTcpClient, newClientStream, _idToGiveToUser);
 
             try {
                 AddToAuthenticationQueue(newClientResources);
@@ -76,6 +75,7 @@ internal class ListenerInstance
     // First off, a list of AuthenticationManagers.
     private List<AuthenticationManager> _authenticationManagers;
     private int _idToGiveToAuthManager;
+    private int _idToGiveToUser;
     // ----------------- // 
 
 
@@ -109,7 +109,7 @@ internal class ListenerInstance
                 return;
             }
             else {
-                SMail.SendFlag(resources!.Stream!, ServerFlag.OVERLOADED);
+                SMail.SendFlag(resources!.stream!, ServerFlag.OVERLOADED);
             }
         }
     }

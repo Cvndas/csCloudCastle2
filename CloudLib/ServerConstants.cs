@@ -54,6 +54,8 @@ public static class ServerConstants
     public const int AUTH_MANAGER_BASE_ID = 100;
     public const int AUTH_MANAGER_ID_INCREMENT = 100;
 
+   public const int USER_BASE_ID = 8000;
+
     // User should never have to wait in queue for a dashboard manager. 
     // Number of dashboard managers grows dynamically. Users are rejected from auth
     // queue if MAX_CLIENTS_ON_SYSTEM has been reached.
